@@ -1,0 +1,223 @@
+"use client";
+
+import type L from "leaflet";
+import { X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { recordPostingProgressAction } from "@/features/posting-map/actions/posting-actions";
+import { STATUS_CONFIG } from "@/features/shared/constants/status-config";
+import {
+  DEFAULT_MAP_ZOOM,
+  FUKUTSU_CENTER,
+  WORK_STATUS_ORDER,
+} from "@/lib/constants/app";
+import type { PostingArea, UserRole, WorkStatus } from "@/lib/types/domain";
+
+interface PostingMapProps {
+  areas: PostingArea[];
+  currentUserRole: UserRole;
+}
+
+export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
+  const containerRef = useRef<HTMLElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const layerRef = useRef<L.LayerGroup | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [selected, setSelected] = useState<PostingArea | null>(null);
+  const [deliveredIncrement, setDeliveredIncrement] = useState(0);
+  const [filter, setFilter] = useState<WorkStatus | "all">("all");
+  const [message, setMessage] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  const visibleAreas = useMemo(
+    () => areas.filter((area) => filter === "all" || area.status === filter),
+    [areas, filter],
+  );
+
+  useEffect(() => {
+    let disposed = false;
+    async function initialize() {
+      if (!containerRef.current || mapRef.current) return;
+      const leaflet = (await import("leaflet")).default;
+      if (disposed || !containerRef.current) return;
+
+      const map = leaflet
+        .map(containerRef.current, { maxZoom: 18 })
+        .setView(FUKUTSU_CENTER, DEFAULT_MAP_ZOOM);
+      leaflet
+        .tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", {
+          attribution:
+            '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noreferrer">地理院タイル</a>',
+          maxZoom: 18,
+        })
+        .addTo(map);
+      mapRef.current = map;
+      layerRef.current = leaflet.layerGroup().addTo(map);
+      setMapReady(true);
+      setTimeout(() => map.invalidateSize(), 50);
+    }
+    void initialize();
+    return () => {
+      disposed = true;
+      mapRef.current?.remove();
+      mapRef.current = null;
+      layerRef.current = null;
+      setMapReady(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mapReady) return;
+
+    async function redraw() {
+      const layer = layerRef.current;
+      if (!layer) return;
+      const leaflet = (await import("leaflet")).default;
+      layer.clearLayers();
+
+      for (const area of visibleAreas) {
+        const status = STATUS_CONFIG[area.status];
+        const latLngs = area.geometry.coordinates[0].map(
+          ([longitude, latitude]) => [latitude, longitude] as [number, number],
+        );
+        const polygon = leaflet
+          .polygon(latLngs, {
+            color: status.color,
+            fillColor: status.fillColor,
+            fillOpacity: 0.52,
+            weight: 3,
+          })
+          .bindTooltip(
+            `${area.areaCode} ${area.name}<br>${status.label} / ${area.deliveredCount}部`,
+          )
+          .on("click", () => {
+            setMessage("");
+            setDeliveredIncrement(0);
+            setSelected(area);
+          });
+        layer.addLayer(polygon);
+      }
+    }
+    void redraw();
+  }, [mapReady, visibleAreas]);
+
+  function update(status: WorkStatus) {
+    if (!selected) return;
+    setMessage("");
+    startTransition(async () => {
+      const result = await recordPostingProgressAction({
+        areaId: selected.id,
+        expectedVersion: selected.version,
+        status,
+        deliveredIncrement,
+        requestId: crypto.randomUUID(),
+        note: selected.note,
+      });
+      setMessage(result.message);
+      if (result.ok) setSelected(null);
+    });
+  }
+
+  return (
+    <div className="map-workspace">
+      <fieldset className="map-toolbar">
+        <legend className="visually-hidden">配布状況の絞り込み</legend>
+        <button
+          className={filter === "all" ? "filter-chip active" : "filter-chip"}
+          onClick={() => setFilter("all")}
+          type="button"
+        >
+          すべて <strong>{areas.length}</strong>
+        </button>
+        {WORK_STATUS_ORDER.map((status) => (
+          <button
+            className={filter === status ? "filter-chip active" : "filter-chip"}
+            key={status}
+            onClick={() => setFilter(status)}
+            type="button"
+          >
+            <span
+              className="status-dot"
+              style={{ backgroundColor: STATUS_CONFIG[status].color }}
+            />
+            {STATUS_CONFIG[status].label}
+          </button>
+        ))}
+      </fieldset>
+      <div className="map-shell">
+        <section
+          ref={containerRef}
+          className="leaflet-map"
+          aria-label="福津市の配布区域地図"
+        />
+        <div className="sample-map-notice">すべて架空の配布区域です</div>
+      </div>
+
+      {message ? <p className="toast-message">{message}</p> : null}
+
+      {selected ? (
+        <aside className="map-drawer" aria-label="配布区域の詳細">
+          <button
+            className="icon-button drawer-close"
+            type="button"
+            onClick={() => setSelected(null)}
+            aria-label="閉じる"
+          >
+            <X size={22} />
+          </button>
+          <p className="eyebrow">{selected.areaCode} / 架空データ</p>
+          <h2>{selected.name}</h2>
+          <dl className="detail-list">
+            <div>
+              <dt>現在の状態</dt>
+              <dd>{STATUS_CONFIG[selected.status].label}</dd>
+            </div>
+            <div>
+              <dt>担当</dt>
+              <dd>{selected.assignee?.displayName ?? "未割当"}</dd>
+            </div>
+            <div>
+              <dt>配布済み</dt>
+              <dd>{selected.deliveredCount}部</dd>
+            </div>
+            <div>
+              <dt>目標</dt>
+              <dd>{selected.targetCount ? `${selected.targetCount}部` : "未設定"}</dd>
+            </div>
+          </dl>
+          {currentUserRole === "viewer" ? (
+            <p className="readonly-note">閲覧のみのため更新できません。</p>
+          ) : (
+            <>
+              <label className="count-field">
+                今回配布した部数
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={5000}
+                  value={deliveredIncrement}
+                  onChange={(event) =>
+                    setDeliveredIncrement(Number(event.target.value) || 0)
+                  }
+                />
+              </label>
+              <div className="status-action-grid">
+                {WORK_STATUS_ORDER.map((status) => (
+                  <button
+                    type="button"
+                    key={status}
+                    disabled={pending}
+                    onClick={() => update(status)}
+                    style={{ borderColor: STATUS_CONFIG[status].color }}
+                  >
+                    {STATUS_CONFIG[status].label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </aside>
+      ) : null}
+    </div>
+  );
+}
