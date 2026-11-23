@@ -30,3 +30,6 @@ Thumbs.db
 data/private/
 backups/
 *.dump
+
+# Vercelローカル接続情報
+.vercel/
