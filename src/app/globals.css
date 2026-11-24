@@ -76,8 +76,18 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  padding: 4px;
+  margin: -4px;
+  border-radius: 14px;
   color: white;
   text-decoration: none;
+  transition: background-color 150ms ease;
+}
+
+.brand-link:hover,
+.brand-link:focus-visible {
+  outline: none;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .brand-copy,

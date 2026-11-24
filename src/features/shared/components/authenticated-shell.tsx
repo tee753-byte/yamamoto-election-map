@@ -21,7 +21,12 @@ export function AuthenticatedShell({ auth, children }: AuthenticatedShellProps) 
   return (
     <div className="app-frame">
       <header className="app-header">
-        <Link href="/" className="brand-link" aria-label={`${APP_NAME} ホーム`}>
+        <Link
+          href="/"
+          className="brand-link"
+          aria-label={`${APP_NAME} ホーム`}
+          title="ホームへ戻る"
+        >
           <span className="brand-mark">
             <BaseMark size={24} />
           </span>
