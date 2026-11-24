@@ -4,7 +4,7 @@
 現在の地点、掲示場番号、配布区域、利用者名、配布数はすべて架空です。
 
 実装元は [`team-mirai-volunteer/action-board`](https://github.com/team-mirai-volunteer/action-board) です。
-`mirai-gikai-fukutsu` とはコード、データ、素材、設定を共有しない独立プロジェクトです。
+コード、データ、素材、設定をほかの既存プロジェクトと共有しない独立プロジェクトです。
 
 ## 現在できること
 
