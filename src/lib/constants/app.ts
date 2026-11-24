@@ -1,6 +1,6 @@
 export const APP_NAME = "山本ゆうへい BASE";
 export const APP_SHORT_NAME = "BASE";
-export const APP_DESCRIPTION = "スタッフ・ボランティア向け活動共有サイト";
+export const APP_DESCRIPTION = "活動共有サイト（ポスターマップ／ポスティングマップ）";
 export const BRAND_COLOR = "#862D39";
 export const FUKUTSU_CENTER: [number, number] = [33.7664, 130.4913];
 export const DEFAULT_MAP_ZOOM = 13;
