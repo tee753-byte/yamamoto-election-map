@@ -31,6 +31,7 @@ export interface PosterWork {
   boardId: string;
   status: WorkStatus;
   assigneeId: string | null;
+  assigneeLabel: string | null;
   note: string | null;
   version: number;
   board: PosterBoard;
@@ -44,6 +45,7 @@ export interface PostingArea {
   geometry: GeoJsonPolygon;
   status: WorkStatus;
   assigneeId: string | null;
+  assigneeLabel: string | null;
   targetCount: number | null;
   deliveredCount: number;
   note: string | null;

@@ -17,6 +17,7 @@ interface PosterWorkRow {
   poster_board_id: string;
   status: WorkStatus;
   assignee_id: string | null;
+  assignee_label: string | null;
   note: string | null;
   version: number;
   poster_boards: {
@@ -53,7 +54,7 @@ export async function listPosterWork(candidateId: string): Promise<PosterWork[]>
   const { data, error } = await supabase
     .from("candidate_poster_work")
     .select(
-      "id, candidate_id, poster_board_id, status, assignee_id, note, version, poster_boards!inner(id, board_number, latitude, longitude, location_hint, is_sample), profiles(id, display_name)",
+      "id, candidate_id, poster_board_id, status, assignee_id, assignee_label, note, version, poster_boards!inner(id, board_number, latitude, longitude, location_hint, is_sample), profiles(id, display_name)",
     )
     .eq("candidate_id", candidateId)
     .order("poster_board_id");
@@ -66,6 +67,7 @@ export async function listPosterWork(candidateId: string): Promise<PosterWork[]>
     boardId: row.poster_board_id,
     status: row.status,
     assigneeId: row.assignee_id,
+    assigneeLabel: row.assignee_label,
     note: row.note,
     version: row.version,
     board: {
@@ -88,6 +90,40 @@ interface UpdatePosterWorkInput {
   status: WorkStatus;
   note: string | null;
   currentUserRole: UserRole;
+}
+
+interface AssignPosterWorkInput {
+  workId: string;
+  expectedVersion: number;
+  assigneeLabel: string;
+  currentUserRole: UserRole;
+}
+
+export async function assignPosterWork(
+  supabase: SupabaseClient,
+  input: AssignPosterWorkInput,
+) {
+  if (input.currentUserRole !== "admin") {
+    return { ok: false, message: "担当者を変更できるのは管理者だけです。" };
+  }
+
+  const { error } = await supabase.rpc("assign_poster_work", {
+    p_work_id: input.workId,
+    p_expected_version: input.expectedVersion,
+    p_assignee_label: input.assigneeLabel,
+  });
+
+  if (error) {
+    const conflict = error.message.includes("conflict");
+    return {
+      ok: false,
+      message: conflict
+        ? "別の人が先に更新しました。画面を再読み込みしてください。"
+        : `担当者を変更できませんでした: ${error.message}`,
+    };
+  }
+
+  return { ok: true, message: "担当者を変更しました。" };
 }
 
 export async function updatePosterWork(

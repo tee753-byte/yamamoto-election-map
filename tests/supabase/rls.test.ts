@@ -31,6 +31,7 @@ test("RLS・役割・競合防止・二重送信防止が機能する", async ()
   const assignedPosterId = "e0000000-0000-0000-0000-000000000003";
   const unassignedPosterId = "e0000000-0000-0000-0000-000000000005";
   const assignedPostingAreaId = "f0000000-0000-0000-0000-000000000002";
+  const unassignedPostingAreaId = "f0000000-0000-0000-0000-000000000004";
 
   const anonymous = localClient();
   const anonymousRead = await anonymous.from("poster_boards").select("id");
@@ -109,6 +110,17 @@ test("RLS・役割・競合防止・二重送信防止が機能する", async ()
   });
   assert.match(unassignedUpdate.error?.message ?? "", /not assigned/);
 
+  const workerAssignment = await worker.rpc("assign_poster_work", {
+    p_work_id: unassignedPosterId,
+    p_expected_version: initialUnassigned.data.version,
+    p_assignee_label: "任意担当",
+  });
+  assert.match(
+    workerAssignment.error?.message ?? "",
+    /not authorized/,
+    "作業担当者は担当変更できないこと",
+  );
+
   const initialPostingArea = await worker
     .from("posting_areas")
     .select("delivered_count, version")
@@ -160,9 +172,120 @@ test("RLS・役割・競合防止・二重送信防止が機能する", async ()
   );
 
   const admin = await signIn("admin@yamamoto-map.local", "demo-admin-2026");
+
+  const posterBeforeAssignment = await admin
+    .from("candidate_poster_work")
+    .select("version")
+    .eq("id", unassignedPosterId)
+    .single();
+  assert.equal(posterBeforeAssignment.error, null);
+  assert.ok(posterBeforeAssignment.data);
+
+  const posterAssignment = await admin.rpc("assign_poster_work", {
+    p_work_id: unassignedPosterId,
+    p_expected_version: posterBeforeAssignment.data.version,
+    p_assignee_label: "藤井・北川チーム",
+  });
+  assert.equal(posterAssignment.error, null, "管理者は掲示場の担当を変更できること");
+
+  const assignedPoster = await admin
+    .from("candidate_poster_work")
+    .select("assignee_id, assignee_label, status, version")
+    .eq("id", unassignedPosterId)
+    .single();
+  assert.equal(assignedPoster.error, null);
+  assert.equal(assignedPoster.data?.assignee_id, null);
+  assert.equal(assignedPoster.data?.assignee_label, "藤井・北川チーム");
+  assert.equal(assignedPoster.data?.status, "assigned");
+
+  const freeLabelPosterUpdate = await worker.rpc("update_poster_work", {
+    p_work_id: unassignedPosterId,
+    p_expected_version: assignedPoster.data?.version,
+    p_new_status: "completed",
+    p_note: "自由入力担当の更新テスト",
+  });
+  assert.equal(
+    freeLabelPosterUpdate.error,
+    null,
+    "自由入力の担当作業は作業担当者が更新できること",
+  );
+
+  const posterAfterWorkerUpdate = await admin
+    .from("candidate_poster_work")
+    .select("version")
+    .eq("id", unassignedPosterId)
+    .single();
+  assert.equal(posterAfterWorkerUpdate.error, null);
+  assert.ok(posterAfterWorkerUpdate.data);
+
+  const postingAreaBeforeAssignment = await admin
+    .from("posting_areas")
+    .select("version")
+    .eq("id", unassignedPostingAreaId)
+    .single();
+  assert.equal(postingAreaBeforeAssignment.error, null);
+  assert.ok(postingAreaBeforeAssignment.data);
+
+  const postingAreaAssignment = await admin.rpc("assign_posting_area", {
+    p_area_id: unassignedPostingAreaId,
+    p_expected_version: postingAreaBeforeAssignment.data.version,
+    p_assignee_label: "A班",
+  });
+  assert.equal(
+    postingAreaAssignment.error,
+    null,
+    "管理者は配布区域の担当を変更できること",
+  );
+
+  const assignedPostingArea = await admin
+    .from("posting_areas")
+    .select("assignee_id, assignee_label, status, version")
+    .eq("id", unassignedPostingAreaId)
+    .single();
+  assert.equal(assignedPostingArea.error, null);
+  assert.equal(assignedPostingArea.data?.assignee_id, null);
+  assert.equal(assignedPostingArea.data?.assignee_label, "A班");
+  assert.equal(assignedPostingArea.data?.status, "assigned");
+
+  const freeLabelPostingUpdate = await worker.rpc("record_posting_progress", {
+    p_area_id: unassignedPostingAreaId,
+    p_expected_version: assignedPostingArea.data?.version,
+    p_new_status: "assigned",
+    p_delivered_increment: 1,
+    p_request_id: crypto.randomUUID(),
+    p_note: "自由入力担当の更新テスト",
+  });
+  assert.equal(
+    freeLabelPostingUpdate.error,
+    null,
+    "自由入力の担当区域は作業担当者が更新できること",
+  );
+
+  const postingAreaAfterWorkerUpdate = await admin
+    .from("posting_areas")
+    .select("version")
+    .eq("id", unassignedPostingAreaId)
+    .single();
+  assert.equal(postingAreaAfterWorkerUpdate.error, null);
+  assert.ok(postingAreaAfterWorkerUpdate.data);
+
   const auditLogs = await admin.from("audit_logs").select("id", { count: "exact" });
   assert.equal(auditLogs.error, null);
-  assert.ok((auditLogs.count ?? 0) >= 2, "正常な更新が操作履歴に残ること");
+  assert.ok((auditLogs.count ?? 0) >= 4, "正常な更新が操作履歴に残ること");
+
+  const posterUnassignment = await admin.rpc("assign_poster_work", {
+    p_work_id: unassignedPosterId,
+    p_expected_version: posterAfterWorkerUpdate.data.version,
+    p_assignee_label: "",
+  });
+  assert.equal(posterUnassignment.error, null, "掲示場を未割当に戻せること");
+
+  const postingAreaUnassignment = await admin.rpc("assign_posting_area", {
+    p_area_id: unassignedPostingAreaId,
+    p_expected_version: postingAreaAfterWorkerUpdate.data.version,
+    p_assignee_label: "",
+  });
+  assert.equal(postingAreaUnassignment.error, null, "配布区域を未割当に戻せること");
 
   await Promise.all([
     viewer.auth.signOut(),

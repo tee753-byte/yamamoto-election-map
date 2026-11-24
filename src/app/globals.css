@@ -607,7 +607,7 @@ p {
   margin: 20px 0;
 }
 
-.detail-list div {
+.detail-list > div {
   display: grid;
   grid-template-columns: 95px 1fr;
   gap: 10px;
@@ -622,6 +622,66 @@ p {
 .detail-list dd {
   margin: 0;
   font-weight: 800;
+}
+
+.assignment-control {
+  display: grid;
+  gap: 8px;
+}
+
+.assignment-control input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid #b9b4aa;
+  border-radius: 10px;
+  color: var(--ink);
+  background: white;
+  font: inherit;
+}
+
+.assignment-control input:focus {
+  outline: 3px solid rgba(134, 45, 57, 0.14);
+  border-color: var(--brand);
+}
+
+.assignment-control small {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 500;
+}
+
+.assignment-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.assignment-control .button {
+  min-height: 44px;
+}
+
+.assignment-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.assignment-edit-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid #cfc9c0;
+  border-radius: 9px;
+  color: var(--brand);
+  background: white;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .status-action-grid {
@@ -785,6 +845,12 @@ p {
 .button-primary {
   color: white;
   background: var(--brand);
+}
+
+.button-secondary {
+  border: 1px solid #b9b4aa;
+  color: var(--ink);
+  background: white;
 }
 
 .button-wide {

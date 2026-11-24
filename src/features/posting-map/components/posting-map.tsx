@@ -1,9 +1,12 @@
 "use client";
 
 import type L from "leaflet";
-import { X } from "lucide-react";
+import { Pencil, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { recordPostingProgressAction } from "@/features/posting-map/actions/posting-actions";
+import {
+  assignPostingAreaAction,
+  recordPostingProgressAction,
+} from "@/features/posting-map/actions/posting-actions";
 import { STATUS_CONFIG } from "@/features/shared/constants/status-config";
 import {
   DEFAULT_MAP_ZOOM,
@@ -23,6 +26,8 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
   const layerRef = useRef<L.LayerGroup | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [selected, setSelected] = useState<PostingArea | null>(null);
+  const [assignmentLabel, setAssignmentLabel] = useState("");
+  const [editingAssignment, setEditingAssignment] = useState(false);
   const [deliveredIncrement, setDeliveredIncrement] = useState(0);
   const [filter, setFilter] = useState<WorkStatus | "all">("all");
   const [message, setMessage] = useState("");
@@ -92,6 +97,8 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
           .on("click", () => {
             setMessage("");
             setDeliveredIncrement(0);
+            setAssignmentLabel(area.assigneeLabel ?? area.assignee?.displayName ?? "");
+            setEditingAssignment(false);
             setSelected(area);
           });
         layer.addLayer(polygon);
@@ -111,6 +118,20 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
         deliveredIncrement,
         requestId: crypto.randomUUID(),
         note: selected.note,
+      });
+      setMessage(result.message);
+      if (result.ok) setSelected(null);
+    });
+  }
+
+  function updateAssignment() {
+    if (!selected) return;
+    setMessage("");
+    startTransition(async () => {
+      const result = await assignPostingAreaAction({
+        areaId: selected.id,
+        expectedVersion: selected.version,
+        assigneeLabel: assignmentLabel,
       });
       setMessage(result.message);
       if (result.ok) setSelected(null);
@@ -173,7 +194,64 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
             </div>
             <div>
               <dt>担当</dt>
-              <dd>{selected.assignee?.displayName ?? "未割当"}</dd>
+              <dd>
+                {currentUserRole === "admin" && editingAssignment ? (
+                  <div className="assignment-control">
+                    <input
+                      aria-label="担当名"
+                      type="text"
+                      maxLength={80}
+                      value={assignmentLabel}
+                      disabled={pending}
+                      placeholder="例：藤井、北川・藤井、A班"
+                      onChange={(event) => setAssignmentLabel(event.target.value)}
+                    />
+                    <small>空欄で保存すると未割当に戻ります。</small>
+                    <div className="assignment-actions">
+                      <button
+                        className="button button-primary"
+                        type="button"
+                        disabled={pending}
+                        onClick={updateAssignment}
+                      >
+                        保存
+                      </button>
+                      <button
+                        className="button button-secondary"
+                        type="button"
+                        disabled={pending}
+                        onClick={() => {
+                          setAssignmentLabel(
+                            selected.assigneeLabel ??
+                              selected.assignee?.displayName ??
+                              "",
+                          );
+                          setEditingAssignment(false);
+                        }}
+                      >
+                        キャンセル
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="assignment-display">
+                    <span>
+                      {selected.assigneeLabel ??
+                        selected.assignee?.displayName ??
+                        "未割当"}
+                    </span>
+                    {currentUserRole === "admin" ? (
+                      <button
+                        className="assignment-edit-button"
+                        type="button"
+                        onClick={() => setEditingAssignment(true)}
+                      >
+                        <Pencil size={15} aria-hidden /> 編集
+                      </button>
+                    ) : null}
+                  </div>
+                )}
+              </dd>
             </div>
             <div>
               <dt>配布済み</dt>
