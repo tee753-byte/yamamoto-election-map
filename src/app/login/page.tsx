@@ -1,8 +1,9 @@
-import { MapPinned, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/features/auth/components/login-form";
 import { getAuthContext } from "@/features/auth/services/session";
+import { BaseMark } from "@/features/shared/components/base-mark";
+import { APP_DESCRIPTION } from "@/lib/constants/app";
 
 export const metadata: Metadata = { title: "ログイン" };
 export const dynamic = "force-dynamic";
@@ -15,14 +16,14 @@ export default async function LoginPage() {
   return (
     <main className="login-page">
       <section className="login-card">
-        <div className="login-logo">
-          <MapPinned size={30} aria-hidden />
+        <div className="login-brand">
+          <div className="login-logo">
+            <BaseMark size={32} />
+          </div>
+          <p className="login-person-name">山本ゆうへい</p>
+          <h1 className="login-base-name">BASE</h1>
+          <p className="login-audience">{APP_DESCRIPTION}</p>
         </div>
-        <p className="eyebrow">山本ゆうへい陣営・内部作業用</p>
-        <h1>活動マップにログイン</h1>
-        <p className="login-intro">
-          ポスター掲示とポスティングの進み具合を、スマートフォンから共有します。
-        </p>
         <LoginForm showDemoCredentials={showDemoCredentials} />
         {showDemoCredentials ? (
           <div className="demo-credentials">
@@ -31,10 +32,6 @@ export default async function LoginPage() {
             <span>パスワード: demo-admin-2026</span>
           </div>
         ) : null}
-        <p className="security-note">
-          <ShieldCheck size={18} aria-hidden />
-          ログインしていない人は、活動データを閲覧できません。
-        </p>
       </section>
     </main>
   );

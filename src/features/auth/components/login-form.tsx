@@ -20,6 +20,7 @@ export function LoginForm({ showDemoCredentials = false }: LoginFormProps) {
         メールアドレス
         <input
           name="email"
+          placeholder="メールアドレスを入力"
           type="email"
           autoComplete="email"
           defaultValue={showDemoCredentials ? "admin@yamamoto-map.local" : undefined}
@@ -30,6 +31,7 @@ export function LoginForm({ showDemoCredentials = false }: LoginFormProps) {
         パスワード
         <input
           name="password"
+          placeholder="パスワードを入力"
           type="password"
           autoComplete="current-password"
           defaultValue={showDemoCredentials ? "demo-admin-2026" : undefined}

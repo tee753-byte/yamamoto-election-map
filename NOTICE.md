@@ -3,7 +3,7 @@
 このプロジェクトは、チームみらいボランティアの
 [`team-mirai-volunteer/action-board`](https://github.com/team-mirai-volunteer/action-board)
 を実装元として、ポスターマップおよびポスティングマップに必要な設計・実装を
-選択的に移植し、山本ゆうへい陣営向けの独立アプリとして改変したものです。
+選択的に移植し、「山本ゆうへい BASE」という独立アプリとして改変したものです。
 
 - 実装元ライセンス: GNU Affero General Public License v3.0
 - 本プロジェクトのライセンス: GNU Affero General Public License v3.0 only

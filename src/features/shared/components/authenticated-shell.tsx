@@ -1,9 +1,10 @@
-import { LogOut, MapPinned } from "lucide-react";
+import { LogOut } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { logoutAction } from "@/features/auth/actions/auth-actions";
 import type { AuthContext } from "@/features/auth/services/session";
-import { APP_NAME } from "@/lib/constants/app";
+import { BaseMark } from "@/features/shared/components/base-mark";
+import { APP_NAME, APP_SHORT_NAME } from "@/lib/constants/app";
 
 const ROLE_LABELS = {
   admin: "管理者",
@@ -22,11 +23,11 @@ export function AuthenticatedShell({ auth, children }: AuthenticatedShellProps) 
       <header className="app-header">
         <Link href="/" className="brand-link" aria-label={`${APP_NAME} ホーム`}>
           <span className="brand-mark">
-            <MapPinned size={22} aria-hidden />
+            <BaseMark size={24} />
           </span>
-          <span>
-            <strong>{APP_NAME}</strong>
-            <small>内部作業用</small>
+          <span className="brand-copy">
+            <small>山本ゆうへい</small>
+            <strong>{APP_SHORT_NAME}</strong>
           </span>
         </Link>
         <div className="user-menu">
@@ -41,7 +42,7 @@ export function AuthenticatedShell({ auth, children }: AuthenticatedShellProps) 
       </header>
       <main className="app-main">{children}</main>
       <footer className="app-footer">
-        <p>山本ゆうへい陣営の内部作業用・非公式ツール</p>
+        <p>{APP_NAME}</p>
         <Link href="/license">ライセンスとソースコード</Link>
       </footer>
     </div>

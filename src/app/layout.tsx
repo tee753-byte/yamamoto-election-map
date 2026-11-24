@@ -2,20 +2,22 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
-import { APP_NAME } from "@/lib/constants/app";
+import { APP_DESCRIPTION, APP_NAME, BRAND_COLOR } from "@/lib/constants/app";
 
 export const metadata: Metadata = {
   title: {
     default: APP_NAME,
     template: `%s | ${APP_NAME}`,
   },
-  description: "福津市議会議員選挙に向けた内部作業用の活動マップ",
+  applicationName: APP_NAME,
+  description: APP_DESCRIPTION,
+  manifest: "/manifest.webmanifest",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#620000",
+  themeColor: BRAND_COLOR,
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

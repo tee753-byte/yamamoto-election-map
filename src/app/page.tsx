@@ -34,7 +34,7 @@ export default async function HomePage() {
       <section className="home-hero">
         <div>
           <p className="eyebrow">2026年12月20日の作業開始に向けた試作</p>
-          <h1>今日の活動を、迷わず共有。</h1>
+          <h1>作業状況を確認</h1>
           <p>
             現在はすべて架空データです。実際の掲示場資料を受領後、番号と位置を差し替えます。
           </p>
@@ -46,7 +46,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="home-grid" aria-label="活動マップを選択">
+      <section className="home-grid" aria-label="機能を選択">
         <Link href="/posters" className="feature-card poster-card">
           <span className="feature-icon">
             <MapPinned size={30} aria-hidden />
