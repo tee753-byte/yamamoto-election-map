@@ -1,4 +1,4 @@
-import { Map as MapIcon, MapPinned, UsersRound } from "lucide-react";
+import { BarChart3, Map as MapIcon, MapPinned, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/features/auth/services/session";
@@ -75,6 +75,21 @@ export default async function HomePage() {
             <span>合計 {deliveredTotal}部</span>
           </div>
           <span className="card-link">地図を開く →</span>
+        </Link>
+
+        <Link href="/insight" className="feature-card insight-card">
+          <span className="feature-icon">
+            <BarChart3 size={30} aria-hidden />
+          </span>
+          <span className="feature-kicker">地域データ・分析</span>
+          <h2>福津インサイト</h2>
+          <p>人口や世帯数など、福津市の地域情報をデータで可視化します。</p>
+          <div className="card-tags">
+            <span>人口</span>
+            <span>世帯数</span>
+            <span>地域別統計</span>
+          </div>
+          <span className="card-link">分析データを開く →</span>
         </Link>
       </section>
 

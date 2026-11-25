@@ -1,11 +1,11 @@
 # 山本ゆうへい BASE
 
 福津市議会議員選挙に向け、スタッフ・ボランティアがポスター掲示とポスティングの
-作業状況を共有するための内部向けWebアプリです。
+作業状況を共有し、福津市の公開統計を確認するための内部向けWebアプリです。
 
 - 共有テスト版: [https://yamamotoyuhei-base.vercel.app](https://yamamotoyuhei-base.vercel.app)
 - ソースコード: [https://github.com/tee753-byte/yamamoto-election-map](https://github.com/tee753-byte/yamamoto-election-map)
-- 最終更新: 2026年11月24日
+- 最終更新: 2026年11月25日
 
 実装元は [`team-mirai-volunteer/action-board`](https://github.com/team-mirai-volunteer/action-board) です。
 必要な機能を選択的に移植・再設計した独立プロジェクトです。
@@ -37,6 +37,10 @@ VercelとクラウドSupabaseを使った共有テスト環境を公開済みで
 - 非ログイン遮断、権限確認、同時更新の競合検出、操作履歴
 - PC・スマートフォン対応
 - ヘッダーの「山本ゆうへい BASE」からホームへ移動
+- 福津市の人口・世帯数・高齢化率・地域別統計の閲覧
+- 2018年以降の人口・世帯数推移グラフ
+- 2020年国勢調査の町丁・字等境界地図
+- 公開統計の出典・基準日・利用条件の確認
 
 一般利用者が自分で新規登録する機能はありません。本番運用では、管理者が必要な人だけを
 個別に招待する方式を予定しています。
@@ -58,6 +62,7 @@ VercelとクラウドSupabaseを使った共有テスト環境を公開済みで
 - Next.js / TypeScript
 - Supabase Auth・PostgreSQL・RLS
 - Leaflet・国土地理院タイル
+- Recharts（人口・世帯数グラフ）
 - Vercel
 
 RLS（Row Level Security）は、利用者の権限に応じてデータベース側で閲覧・更新を制限する仕組みです。
@@ -135,6 +140,10 @@ npm run build
 GNU Affero General Public License v3.0 only（AGPL-3.0-only）です。詳細は [LICENSE](./LICENSE) と
 [NOTICE.md](./NOTICE.md) を確認してください。稼働中の改変版に対応するソースコードをこの公開リポジトリで
 提供します。秘密鍵、実データ、ログイン情報は公開リポジトリへ含めません。
+
+福津インサイトで使用する人口統計・地理データは公開資料です。ソフトウェアとは別に、
+CC BY 4.0、e-Stat利用規約、各公開元の利用条件に従います。出典と加工上の注意は
+[福津インサイトのデータ出典](./docs/fukutsu-insight-data.md)およびアプリ内の「データ出典」に表示します。
 
 初期MVPを実装した時点の記録は、履歴資料として
 [ローカルMVP実装報告](./docs/20261123_0238_ローカルMVP実装報告.md) に残しています。

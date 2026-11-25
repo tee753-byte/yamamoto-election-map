@@ -1,7 +1,14 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.3.13/schema.json",
   "files": {
-    "includes": ["**", "!!node_modules", "!!.next", "!!.vercel", "!!supabase/.temp"]
+    "includes": [
+      "**",
+      "!!node_modules",
+      "!!.next",
+      "!!.vercel",
+      "!!supabase/.temp",
+      "!!src/features/fukutsu-insight/data"
+    ]
   },
   "formatter": {
     "enabled": true,

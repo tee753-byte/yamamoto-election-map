@@ -300,6 +300,31 @@ p {
   background: var(--ink);
 }
 
+.insight-card {
+  grid-column: 1 / -1;
+  min-height: 270px;
+}
+
+.insight-card .feature-icon {
+  background: #385a6b;
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0;
+}
+
+.card-tags span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #385a6b;
+  background: #edf3f5;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
 .feature-kicker {
   color: var(--brand);
   font-size: 0.75rem;
@@ -976,6 +1001,10 @@ p {
   .feature-card {
     min-height: auto;
     padding: 24px;
+  }
+
+  .insight-card {
+    grid-column: auto;
   }
 
   .home-note {
