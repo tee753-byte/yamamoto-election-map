@@ -846,6 +846,21 @@ p {
   cursor: not-allowed;
 }
 
+.area-delete-section {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.area-delete-section p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
 .readonly-note {
   padding: 14px;
   border-radius: 10px;
@@ -991,6 +1006,16 @@ p {
 .button-secondary {
   border: 1px solid #b9b4aa;
   color: var(--ink);
+  background: white;
+}
+
+.button-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #b91c1c;
+  color: #b91c1c;
   background: white;
 }
 

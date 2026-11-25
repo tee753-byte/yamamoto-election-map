@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAuthContext } from "@/features/auth/services/session";
 import {
+  archivePostingArea,
   assignPostingArea,
   createPostingArea,
   importPostingAreas,
@@ -26,6 +27,11 @@ const assignmentInputSchema = z.object({
   areaId: z.guid(),
   expectedVersion: z.number().int().nonnegative(),
   assigneeLabel: z.string().trim().max(80),
+});
+
+const archiveInputSchema = z.object({
+  areaId: z.guid(),
+  expectedVersion: z.number().int().positive(),
 });
 
 const coordinateSchema = z.tuple([
@@ -126,6 +132,23 @@ export async function assignPostingAreaAction(
     currentUserRole: auth.profile.role,
   });
 
+  if (result.ok) revalidatePath("/posting");
+  return result;
+}
+
+export async function archivePostingAreaAction(
+  input: z.infer<typeof archiveInputSchema>,
+): Promise<ActionState> {
+  const parsed = archiveInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "区域を確認してください。" };
+
+  const auth = await getAuthContext();
+  if (!auth) return { ok: false, message: "ログインし直してください。" };
+
+  const result = await archivePostingArea(await createClient(), {
+    ...parsed.data,
+    currentUserRole: auth.profile.role,
+  });
   if (result.ok) revalidatePath("/posting");
   return result;
 }

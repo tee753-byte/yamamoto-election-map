@@ -294,7 +294,7 @@ test("RLS・役割・競合防止・二重送信防止が機能する", async ()
   ]);
 });
 
-test("管理者だけが配布区域を作成・一括登録できる", async () => {
+test("管理者だけが配布区域を作成・一括登録・削除できる", async () => {
   const suffix = crypto.randomUUID().slice(0, 8);
   const geometry = {
     type: "Polygon",
@@ -342,13 +342,50 @@ test("管理者だけが配布区域を作成・一括登録できる", async ()
   assert.equal(adminCreate.error, null, "管理者は地図区域を登録できること");
   const created = await admin
     .from("posting_areas")
-    .select("area_code, name, target_count, is_sample")
+    .select("area_code, name, target_count, is_sample, version")
     .eq("id", adminCreate.data)
     .single();
   assert.equal(created.error, null);
   assert.equal(created.data?.area_code, input.p_area_code);
   assert.equal(created.data?.target_count, 100);
   assert.equal(created.data?.is_sample, false);
+
+  const workerArchive = await worker.rpc("archive_posting_area", {
+    p_area_id: adminCreate.data,
+    p_expected_version: created.data?.version,
+  });
+  assert.match(workerArchive.error?.message ?? "", /not authorized/);
+
+  const staleArchive = await admin.rpc("archive_posting_area", {
+    p_area_id: adminCreate.data,
+    p_expected_version: (created.data?.version ?? 1) + 1,
+  });
+  assert.match(staleArchive.error?.message ?? "", /conflict/);
+
+  const adminArchive = await admin.rpc("archive_posting_area", {
+    p_area_id: adminCreate.data,
+    p_expected_version: created.data?.version,
+  });
+  assert.equal(adminArchive.error, null, "管理者は区域を削除できること");
+  const archivedRead = await admin
+    .from("posting_areas")
+    .select("id")
+    .eq("id", adminCreate.data)
+    .is("archived_at", null);
+  assert.equal(archivedRead.error, null);
+  assert.equal(
+    archivedRead.data?.length,
+    0,
+    "削除した区域は通常一覧に表示されないこと",
+  );
+
+  const archiveAudit = await admin
+    .from("audit_logs")
+    .select("id")
+    .eq("entity_id", adminCreate.data)
+    .eq("action", "archived");
+  assert.equal(archiveAudit.error, null);
+  assert.equal(archiveAudit.data?.length, 1, "区域削除が操作履歴に残ること");
 
   const importRows = [1, 2].map((number) => ({
     areaCode: `IMPORT-${suffix}-${number}`,

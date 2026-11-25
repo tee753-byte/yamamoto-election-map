@@ -32,6 +32,7 @@ export async function listPostingAreas(): Promise<PostingArea[]> {
     .select(
       "id, area_code, name, geometry, status, assignee_id, assignee_label, target_count, delivered_count, note, version, is_sample, profiles(id, display_name)",
     )
+    .is("archived_at", null)
     .order("area_code");
 
   if (error) throw new Error(`配布区域の取得に失敗しました: ${error.message}`);
@@ -69,6 +70,12 @@ interface AssignPostingAreaInput {
   areaId: string;
   expectedVersion: number;
   assigneeLabel: string;
+  currentUserRole: UserRole;
+}
+
+interface ArchivePostingAreaInput {
+  areaId: string;
+  expectedVersion: number;
   currentUserRole: UserRole;
 }
 
@@ -170,6 +177,32 @@ export async function assignPostingArea(
   }
 
   return { ok: true, message: "担当者を変更しました。" };
+}
+
+export async function archivePostingArea(
+  supabase: SupabaseClient,
+  input: ArchivePostingAreaInput,
+) {
+  if (input.currentUserRole !== "admin") {
+    return { ok: false, message: "区域を削除できるのは管理者だけです。" };
+  }
+
+  const { error } = await supabase.rpc("archive_posting_area", {
+    p_area_id: input.areaId,
+    p_expected_version: input.expectedVersion,
+  });
+
+  if (error) {
+    const conflict = error.message.includes("conflict");
+    return {
+      ok: false,
+      message: conflict
+        ? "別の人が先に更新しました。画面を再読み込みしてください。"
+        : `区域を削除できませんでした: ${error.message}`,
+    };
+  }
+
+  return { ok: true, message: "配布区域を削除しました。" };
 }
 
 export async function recordPostingProgress(

@@ -1,13 +1,13 @@
 "use client";
 
 import type L from "leaflet";
-import { LocateFixed, MapPinPlus, Pencil, Upload, X } from "lucide-react";
+import { LocateFixed, MapPinPlus, Pencil, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
+  archivePostingAreaAction,
   assignPostingAreaAction,
   createPostingAreaAction,
-  importPostingAreasAction,
   recordPostingProgressAction,
 } from "@/features/posting-map/actions/posting-actions";
 import { STATUS_CONFIG } from "@/features/shared/constants/status-config";
@@ -23,71 +23,9 @@ interface PostingMapProps {
   currentUserRole: UserRole;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function propertyText(properties: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = properties[key];
-    if (typeof value === "string" && value.trim()) return value.trim();
-    if (typeof value === "number") return String(value);
-  }
-  return "";
-}
-
-function parsePostingGeoJson(value: unknown) {
-  if (
-    !isRecord(value) ||
-    value.type !== "FeatureCollection" ||
-    !Array.isArray(value.features)
-  ) {
-    throw new Error("FeatureCollection形式のGeoJSONではありません。");
-  }
-
-  return value.features.map((rawFeature, index) => {
-    if (!isRecord(rawFeature) || rawFeature.type !== "Feature") {
-      throw new Error(`${index + 1}件目がGeoJSONのFeatureではありません。`);
-    }
-    const geometry = rawFeature.geometry;
-    if (
-      !isRecord(geometry) ||
-      geometry.type !== "Polygon" ||
-      !Array.isArray(geometry.coordinates)
-    ) {
-      throw new Error(`${index + 1}件目はPolygon形式ではありません。`);
-    }
-    const properties = isRecord(rawFeature.properties) ? rawFeature.properties : {};
-    const areaCode = propertyText(properties, ["areaCode", "area_code", "code"]);
-    const name = propertyText(properties, ["name", "areaName", "area_name"]);
-    if (!areaCode || !name) {
-      throw new Error(
-        `${index + 1}件目のpropertiesに区域番号（areaCode）または名前（name）がありません。`,
-      );
-    }
-    const rawTargetCount = properties.targetCount ?? properties.target_count;
-    const targetCount =
-      rawTargetCount === undefined || rawTargetCount === null || rawTargetCount === ""
-        ? null
-        : Number(rawTargetCount);
-    const note = propertyText(properties, ["note", "memo"]) || null;
-    return {
-      areaCode,
-      name,
-      geometry: {
-        type: "Polygon" as const,
-        coordinates: geometry.coordinates as number[][][],
-      },
-      targetCount,
-      note,
-    };
-  });
-}
-
 export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
   const router = useRouter();
   const containerRef = useRef<HTMLElement>(null);
-  const importInputRef = useRef<HTMLInputElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
   const locationLayerRef = useRef<L.LayerGroup | null>(null);
@@ -256,6 +194,28 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
     });
   }
 
+  function archiveSelectedArea() {
+    if (!selected) return;
+    if (
+      !window.confirm(
+        `「${selected.name}」を削除しますか？\n画面から非表示になりますが、操作履歴は残ります。`,
+      )
+    ) {
+      return;
+    }
+    setMessage("");
+    startTransition(async () => {
+      const result = await archivePostingAreaAction({
+        areaId: selected.id,
+        expectedVersion: selected.version,
+      });
+      setMessage(result.message);
+      if (!result.ok) return;
+      setSelected(null);
+      router.refresh();
+    });
+  }
+
   function startDrawing() {
     const map = mapRef.current;
     if (!map) return;
@@ -341,36 +301,6 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
     );
   }
 
-  async function importGeoJson(file: File) {
-    setMessage("");
-    try {
-      const areasToImport = parsePostingGeoJson(
-        JSON.parse(await file.text()) as unknown,
-      );
-      if (areasToImport.length < 1 || areasToImport.length > 200) {
-        throw new Error("一度に取り込める区域は1～200件です。");
-      }
-      if (
-        !window.confirm(`${areasToImport.length}区域を登録します。よろしいですか？`)
-      ) {
-        return;
-      }
-      startTransition(async () => {
-        const result = await importPostingAreasAction(areasToImport);
-        setMessage(result.message);
-        if (result.ok) router.refresh();
-      });
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "GeoJSONファイルを読み取れませんでした。",
-      );
-    } finally {
-      if (importInputRef.current) importInputRef.current.value = "";
-    }
-  }
-
   return (
     <div className="map-workspace">
       <fieldset className="map-toolbar">
@@ -399,44 +329,24 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
       </fieldset>
       <div className="map-utility-bar">
         {currentUserRole === "admin" ? (
-          <>
-            {drawing ? (
-              <button
-                className="button button-secondary"
-                type="button"
-                onClick={cancelDrawing}
-              >
-                描画をやめる
-              </button>
-            ) : (
-              <button
-                className="button button-primary"
-                type="button"
-                disabled={!mapReady}
-                onClick={startDrawing}
-              >
-                <MapPinPlus size={18} aria-hidden /> 区域を追加
-              </button>
-            )}
+          drawing ? (
             <button
               className="button button-secondary"
               type="button"
-              disabled={pending}
-              onClick={() => importInputRef.current?.click()}
+              onClick={cancelDrawing}
             >
-              <Upload size={18} aria-hidden /> GeoJSON取込
+              描画をやめる
             </button>
-            <input
-              ref={importInputRef}
-              className="visually-hidden"
-              type="file"
-              accept=".geojson,.json,application/geo+json,application/json"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void importGeoJson(file);
-              }}
-            />
-          </>
+          ) : (
+            <button
+              className="button button-primary"
+              type="button"
+              disabled={!mapReady}
+              onClick={startDrawing}
+            >
+              <MapPinPlus size={18} aria-hidden /> 区域を追加
+            </button>
+          )
         ) : null}
         <button
           className="button button-secondary"
@@ -653,6 +563,19 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
                   </button>
                 ))}
               </div>
+              {currentUserRole === "admin" ? (
+                <div className="area-delete-section">
+                  <p>削除すると、この区域は地図と進捗集計から非表示になります。</p>
+                  <button
+                    className="button button-danger"
+                    type="button"
+                    disabled={pending}
+                    onClick={archiveSelectedArea}
+                  >
+                    <Trash2 size={17} aria-hidden /> 区域を削除
+                  </button>
+                </div>
+              ) : null}
             </>
           )}
         </aside>
