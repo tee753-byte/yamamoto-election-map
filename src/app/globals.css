@@ -185,66 +185,23 @@ p {
   text-transform: uppercase;
 }
 
-.home-hero {
-  display: grid;
-  grid-template-columns: 1fr auto;
+.home-status-notice {
+  display: flex;
   align-items: center;
-  gap: 28px;
-  padding: 36px;
-  border-radius: var(--radius-lg);
-  color: white;
-  background:
-    linear-gradient(115deg, rgba(100, 32, 43, 0.96), rgba(134, 45, 57, 0.82)),
-    repeating-linear-gradient(
-      45deg,
-      transparent 0 24px,
-      rgba(255, 255, 255, 0.04) 24px 48px
-    );
-  box-shadow: var(--shadow);
-}
-
-.home-hero .eyebrow {
-  color: #f2d8a0;
-}
-
-.home-hero h1 {
-  max-width: 780px;
-  margin-bottom: 12px;
-  font-size: clamp(2rem, 5vw, 3.6rem);
-  line-height: 1.08;
-  letter-spacing: -0.04em;
-}
-
-.home-hero p:last-child {
-  max-width: 680px;
-  margin-bottom: 0;
-  color: rgba(255, 255, 255, 0.8);
-  line-height: 1.8;
-}
-
-.hero-date-card {
-  min-width: 170px;
-  padding: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 12px 16px;
+  border: 1px solid #ead9dc;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.1);
-  text-align: center;
+  color: #665d60;
+  background: #fff8f8;
+  font-size: 0.8rem;
+  line-height: 1.6;
 }
 
-.hero-date-card span,
-.hero-date-card strong,
-.hero-date-card small {
-  display: block;
-}
-
-.hero-date-card strong {
-  margin: 8px 0;
-  font-size: 1.8rem;
-}
-
-.hero-date-card small {
-  color: rgba(255, 255, 255, 0.7);
-  line-height: 1.5;
+.home-status-notice strong {
+  margin-right: 6px;
+  color: var(--brand);
 }
 
 .home-grid {
@@ -309,7 +266,7 @@ p {
 }
 
 .home-schedule {
-  margin-top: 24px;
+  margin-top: 14px;
   padding: 20px 24px;
   border: 1px solid rgba(134, 45, 57, 0.12);
   border-radius: var(--radius-md);
@@ -1064,30 +1021,11 @@ p {
     padding-top: 18px;
   }
 
-  .home-hero {
-    grid-template-columns: 1fr;
-    padding: 24px;
-  }
-
-  .home-hero h1 {
-    font-size: 2.25rem;
-  }
-
-  .hero-date-card {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: center;
-    gap: 4px 12px;
-    min-width: 0;
-    text-align: left;
-  }
-
-  .hero-date-card strong {
-    margin: 0;
-  }
-
-  .hero-date-card small {
-    grid-column: 1 / -1;
+  .home-status-notice {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 13px;
   }
 
   .home-grid {

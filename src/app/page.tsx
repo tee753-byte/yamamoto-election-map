@@ -41,20 +41,12 @@ export default async function HomePage() {
 
   return (
     <AuthenticatedShell auth={auth}>
-      <section className="home-hero">
-        <div>
-          <p className="eyebrow">2026年12月20日の作業開始に向けた試作</p>
-          <h1>作業状況を確認</h1>
-          <p>
-            現在はすべて架空データです。実際の掲示場資料を受領後、番号と位置を差し替えます。
-          </p>
-        </div>
-        <div className="hero-date-card">
-          <span>告示日</span>
-          <strong>12月20日</strong>
-          <small>正式データ・運用方法は事前に確定</small>
-        </div>
-      </section>
+      <aside className="home-status-notice" aria-label="試作データに関するお知らせ">
+        <span>
+          <strong>告示日</strong> 2026年12月20日
+        </span>
+        <span>現在は架空データです。正式資料の受領後に差し替えます。</span>
+      </aside>
 
       <section className="home-schedule" aria-labelledby="home-schedule-title">
         <div className="home-schedule-heading">
