@@ -207,15 +207,18 @@ p {
 .home-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 22px;
-  margin-top: 24px;
+  grid-auto-rows: 272px;
+  gap: 16px;
+  margin-top: 18px;
 }
 
 .feature-card {
   position: relative;
+  display: flex;
   overflow: hidden;
-  min-height: 320px;
-  padding: 30px;
+  min-height: 0;
+  flex-direction: column;
+  padding: 18px 20px;
   border: 1px solid rgba(134, 45, 57, 0.12);
   border-radius: var(--radius-lg);
   background: var(--paper);
@@ -245,10 +248,10 @@ p {
 .feature-icon {
   position: relative;
   z-index: 1;
-  width: 58px;
-  height: 58px;
-  margin-bottom: 22px;
-  border-radius: 18px;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 8px;
+  border-radius: 14px;
   color: white;
   background: var(--brand);
 }
@@ -267,7 +270,7 @@ p {
 
 .home-schedule {
   margin-top: 14px;
-  padding: 20px 24px;
+  padding: 15px 20px;
   border: 1px solid rgba(134, 45, 57, 0.12);
   border-radius: var(--radius-md);
   background: white;
@@ -279,7 +282,7 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
 }
 
 .home-schedule-heading h2 {
@@ -303,11 +306,11 @@ p {
 
 .home-schedule-item {
   display: grid;
-  grid-template-columns: 145px 1fr auto;
+  grid-template-columns: 110px minmax(0, 1fr);
   align-items: center;
-  gap: 14px;
-  min-height: 58px;
-  padding: 10px 0;
+  gap: 10px;
+  min-height: 50px;
+  padding: 7px 0;
   border-top: 1px solid #ece7e5;
   text-decoration: none;
 }
@@ -324,6 +327,18 @@ p {
   display: block;
 }
 
+.home-schedule-item > span {
+  min-width: 0;
+}
+
+.home-schedule-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 2px;
+}
+
 .home-schedule-item small,
 .home-schedule-empty {
   color: var(--muted);
@@ -331,7 +346,7 @@ p {
 }
 
 .home-schedule-item em {
-  padding: 4px 7px;
+  padding: 2px 7px;
   border-radius: 999px;
   font-size: 0.68rem;
   font-style: normal;
@@ -365,12 +380,12 @@ p {
 .card-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 20px 0;
+  gap: 6px;
+  margin: 6px 0;
 }
 
 .card-tags span {
-  padding: 6px 10px;
+  padding: 4px 9px;
   border-radius: 999px;
   color: #385a6b;
   background: #edf3f5;
@@ -385,25 +400,26 @@ p {
 }
 
 .feature-card h2 {
-  margin: 6px 0 10px;
-  font-size: 1.55rem;
+  margin: 2px 0 4px;
+  font-size: 1.4rem;
 }
 
 .feature-card p {
+  margin: 0;
   color: var(--muted);
-  line-height: 1.75;
+  line-height: 1.6;
 }
 
 .card-progress-row {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  margin: 22px 0;
+  margin: 6px 0;
 }
 
 .card-progress-row strong {
   color: var(--brand);
-  font-size: 2.1rem;
+  font-size: 1.75rem;
 }
 
 .card-progress-row span {
@@ -412,6 +428,8 @@ p {
 }
 
 .card-link {
+  margin-top: auto;
+  padding-top: 4px;
   color: var(--brand);
   font-weight: 900;
 }
@@ -1108,16 +1126,17 @@ p {
 
   .home-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    margin-top: 14px;
+    grid-auto-rows: 160px;
+    gap: 8px;
+    margin-top: 12px;
   }
 
   .feature-card {
     display: flex;
     min-width: 0;
-    min-height: 188px;
+    min-height: 0;
     flex-direction: column;
-    padding: 15px;
+    padding: 12px;
     border-radius: 16px;
   }
 
@@ -1129,10 +1148,10 @@ p {
   }
 
   .feature-icon {
-    width: 44px;
-    height: 44px;
-    margin-bottom: 12px;
-    border-radius: 13px;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 6px;
+    border-radius: 12px;
   }
 
   .feature-icon svg {
@@ -1147,7 +1166,7 @@ p {
   }
 
   .feature-card h2 {
-    margin: 0 0 10px;
+    margin: 0 0 4px;
     font-size: 1rem;
     line-height: 1.4;
   }
@@ -1156,7 +1175,7 @@ p {
     align-items: baseline;
     flex-wrap: wrap;
     gap: 3px 7px;
-    margin: auto 0 8px;
+    margin: auto 0 3px;
   }
 
   .card-progress-row strong {
@@ -1169,21 +1188,20 @@ p {
 
   .card-link {
     margin-top: auto;
+    padding-top: 4px;
     font-size: 0.75rem;
     line-height: 1.4;
   }
 
   .home-schedule {
-    padding: 17px;
+    padding: 13px;
   }
 
   .home-schedule-item {
-    grid-template-columns: 90px 1fr;
-  }
-
-  .home-schedule-item em {
-    grid-column: 2;
-    justify-self: start;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 48px;
+    padding: 6px 0;
   }
 
   .status-summary-grid {
@@ -1219,6 +1237,12 @@ p {
 
   .legal-page {
     padding: 24px;
+  }
+}
+
+@media (max-width: 380px) {
+  .home-grid {
+    grid-auto-rows: 182px;
   }
 }
 

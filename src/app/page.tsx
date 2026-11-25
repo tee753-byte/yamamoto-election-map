@@ -58,17 +58,21 @@ export default async function HomePage() {
                 </time>
                 <span>
                   <strong>{event.title}</strong>
-                  <small>
-                    {event.isAllDay
-                      ? "終日"
-                      : event.timeTbd
-                        ? event.timeNote || "時間未定"
-                        : compactTime(event.startTime) || event.timeNote || "時刻未定"}
-                  </small>
+                  <span className="home-schedule-meta">
+                    <small>
+                      {event.isAllDay
+                        ? "終日"
+                        : event.timeTbd
+                          ? event.timeNote || "時間未定"
+                          : compactTime(event.startTime) ||
+                            event.timeNote ||
+                            "時刻未定"}
+                    </small>
+                    <em className={`schedule-status-${event.status}`}>
+                      {STATUS_CONFIG[event.status].label}
+                    </em>
+                  </span>
                 </span>
-                <em className={`schedule-status-${event.status}`}>
-                  {STATUS_CONFIG[event.status].label}
-                </em>
               </Link>
             ))}
           </div>
@@ -78,20 +82,14 @@ export default async function HomePage() {
       </section>
 
       <section className="home-grid" aria-label="機能を選択">
-        <Link href="/posters" className="feature-card poster-card">
+        <Link href="/schedule" className="feature-card schedule-card">
           <span className="feature-icon">
-            <MapPinned size={30} aria-hidden />
+            <CalendarDays size={30} aria-hidden />
           </span>
-          <span className="feature-kicker">ポスター掲示</span>
-          <h2>ポスターマップ</h2>
-          <p>掲示場をタップして、担当中・完了・要確認を記録します。</p>
-          <div className="card-progress-row">
-            <strong>{posterProgress.percent}%</strong>
-            <span>
-              {posterProgress.completed} / {posterProgress.total}か所完了
-            </span>
-          </div>
-          <span className="card-link">地図を開く →</span>
+          <span className="feature-kicker">予定・情報共有</span>
+          <h2>スケジュール</h2>
+          <p>今後の予定やメンバーの参加可能時間を確認・共有します。</p>
+          <span className="card-link">スケジュールを開く →</span>
         </Link>
 
         <Link href="/posting" className="feature-card posting-card">
@@ -104,6 +102,22 @@ export default async function HomePage() {
           <div className="card-progress-row">
             <strong>{postingProgress.percent}%</strong>
             <span>合計 {deliveredTotal}部</span>
+          </div>
+          <span className="card-link">地図を開く →</span>
+        </Link>
+
+        <Link href="/posters" className="feature-card poster-card">
+          <span className="feature-icon">
+            <MapPinned size={30} aria-hidden />
+          </span>
+          <span className="feature-kicker">ポスター掲示</span>
+          <h2>ポスターマップ</h2>
+          <p>掲示場をタップして、担当中・完了・要確認を記録します。</p>
+          <div className="card-progress-row">
+            <strong>{posterProgress.percent}%</strong>
+            <span>
+              {posterProgress.completed} / {posterProgress.total}か所完了
+            </span>
           </div>
           <span className="card-link">地図を開く →</span>
         </Link>
@@ -121,16 +135,6 @@ export default async function HomePage() {
             <span>地域別統計</span>
           </div>
           <span className="card-link">分析データを開く →</span>
-        </Link>
-
-        <Link href="/schedule" className="feature-card schedule-card">
-          <span className="feature-icon">
-            <CalendarDays size={30} aria-hidden />
-          </span>
-          <span className="feature-kicker">予定・情報共有</span>
-          <h2>スケジュール</h2>
-          <p>今後の予定やメンバーの参加可能時間を確認・共有します。</p>
-          <span className="card-link">スケジュールを開く →</span>
         </Link>
       </section>
     </AuthenticatedShell>
