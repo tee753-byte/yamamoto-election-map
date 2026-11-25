@@ -45,7 +45,9 @@ export default async function HomePage() {
         <span>
           <strong>告示日</strong> 2026年12月20日
         </span>
-        <span>現在は架空データです。正式資料の受領後に差し替えます。</span>
+        <span>
+          ポスター・ポスティングは架空データです。正式資料の受領後に差し替えます。
+        </span>
       </aside>
 
       <section className="home-schedule" aria-labelledby="home-schedule-title">

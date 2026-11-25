@@ -29,6 +29,7 @@ Thumbs.db
 # 実データとバックアップ（架空サンプルだけを管理する）
 data/private/
 backups/
+.local-backups/
 *.dump
 
 # Vercelローカル接続情報
