@@ -1029,12 +1029,70 @@ p {
   }
 
   .home-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
   }
 
   .feature-card {
-    min-height: auto;
-    padding: 24px;
+    display: flex;
+    min-width: 0;
+    min-height: 188px;
+    flex-direction: column;
+    padding: 15px;
+    border-radius: 16px;
+  }
+
+  .feature-card::after {
+    width: 90px;
+    height: 90px;
+    right: -32px;
+    top: -25px;
+  }
+
+  .feature-icon {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 12px;
+    border-radius: 13px;
+  }
+
+  .feature-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .feature-kicker,
+  .feature-card > p,
+  .card-tags {
+    display: none;
+  }
+
+  .feature-card h2 {
+    margin: 0 0 10px;
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+
+  .card-progress-row {
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 3px 7px;
+    margin: auto 0 8px;
+  }
+
+  .card-progress-row strong {
+    font-size: 1.45rem;
+  }
+
+  .card-progress-row span {
+    font-size: 0.68rem;
+  }
+
+  .card-link {
+    margin-top: auto;
+    font-size: 0.75rem;
+    line-height: 1.4;
   }
 
   .home-schedule {
