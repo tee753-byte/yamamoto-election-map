@@ -1,10 +1,4 @@
-import {
-  BarChart3,
-  CalendarDays,
-  Map as MapIcon,
-  MapPinned,
-  UsersRound,
-} from "lucide-react";
+import { BarChart3, CalendarDays, Map as MapIcon, MapPinned } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/features/auth/services/session";
@@ -140,16 +134,6 @@ export default async function HomePage() {
           <p>今後の予定やメンバーの参加可能時間を確認・共有します。</p>
           <span className="card-link">スケジュールを開く →</span>
         </Link>
-      </section>
-
-      <section className="home-note">
-        <UsersRound size={24} aria-hidden />
-        <div>
-          <h2>複数候補者の合同作業にも対応できる設計</h2>
-          <p>
-            掲示場は共通で管理し、貼付状況は候補者別に記録します。現時点では山本ゆうへいさんだけを表示します。
-          </p>
-        </div>
       </section>
     </AuthenticatedShell>
   );

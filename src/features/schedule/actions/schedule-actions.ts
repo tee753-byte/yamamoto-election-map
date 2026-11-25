@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getAuthContext } from "@/features/auth/services/session";
 import {
   createScheduleEvent,
+  deleteScheduleAvailability,
   deleteScheduleEvent,
   updateScheduleEvent,
   upsertScheduleAvailability,
@@ -204,6 +205,29 @@ export async function upsertScheduleAvailabilityAction(
   if (authorizationError) return { ok: false, message: authorizationError };
 
   const result = await upsertScheduleAvailability(await createClient(), parsed.data);
+  if (result.ok) revalidateSchedule();
+  return result;
+}
+
+export async function deleteScheduleAvailabilityAction(
+  availabilityId: string,
+  expectedVersion: number,
+): Promise<ActionState> {
+  const parsed = z
+    .object({
+      availabilityId: z.guid(),
+      expectedVersion: z.number().int().positive(),
+    })
+    .safeParse({ availabilityId, expectedVersion });
+  if (!parsed.success) return { ok: false, message: "入力内容を確認してください。" };
+  const authorizationError = await writableAuthError();
+  if (authorizationError) return { ok: false, message: authorizationError };
+
+  const result = await deleteScheduleAvailability(
+    await createClient(),
+    parsed.data.availabilityId,
+    parsed.data.expectedVersion,
+  );
   if (result.ok) revalidateSchedule();
   return result;
 }

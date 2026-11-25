@@ -249,3 +249,19 @@ export async function upsertScheduleAvailability(
   });
   return mutationResult(error, "参加可能時間を保存しました。", "参加可能時間を保存");
 }
+
+export async function deleteScheduleAvailability(
+  supabase: SupabaseClient,
+  availabilityId: string,
+  expectedVersion: number,
+) {
+  const { error } = await supabase.rpc("delete_schedule_availability", {
+    p_availability_id: availabilityId,
+    p_expected_version: expectedVersion,
+  });
+  return mutationResult(
+    error,
+    "参加可能時間を削除して未回答に戻しました。",
+    "参加可能時間を削除",
+  );
+}

@@ -416,26 +416,6 @@ p {
   font-weight: 900;
 }
 
-.home-note {
-  display: flex;
-  gap: 16px;
-  margin-top: 24px;
-  padding: 24px;
-  border-radius: var(--radius-md);
-  color: #304357;
-  background: #e9eef1;
-}
-
-.home-note h2 {
-  margin-bottom: 6px;
-  font-size: 1rem;
-}
-
-.home-note p {
-  margin: 0;
-  line-height: 1.6;
-}
-
 .page-heading {
   margin-bottom: 22px;
 }
@@ -1106,10 +1086,6 @@ p {
   .home-schedule-item em {
     grid-column: 2;
     justify-self: start;
-  }
-
-  .home-note {
-    align-items: flex-start;
   }
 
   .status-summary-grid {

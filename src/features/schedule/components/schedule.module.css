@@ -704,12 +704,69 @@
 
   .calendarPanel {
     padding: 12px;
-    overflow-x: auto;
+    overflow-x: visible;
   }
 
   .weekHeader,
   .calendarGrid {
-    min-width: 700px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .calendarDay {
+    min-width: 0;
+    min-height: 78px;
+    padding: 3px;
+  }
+
+  .weekHeader span {
+    padding: 6px 2px;
+    font-size: 0.68rem;
+  }
+
+  .dateButton {
+    width: 28px;
+    height: 28px;
+    font-size: 0.72rem;
+  }
+
+  .calendarEvents {
+    gap: 2px;
+  }
+
+  .calendarEvent {
+    min-height: 18px;
+    padding: 3px 2px;
+    font-size: 0.56rem;
+    line-height: 1.15;
+  }
+
+  .availabilityCount {
+    position: static;
+    display: block;
+    overflow: hidden;
+    font-size: 0.56rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .calendarToolbar {
+    grid-template-columns: 38px minmax(0, 1fr) 38px auto;
+    gap: 5px;
+  }
+
+  .calendarToolbar h2 {
+    font-size: 1rem;
+  }
+
+  .calendarToolbar button {
+    min-width: 38px;
+    min-height: 38px;
+  }
+
+  .calendarToolbar .todayButton {
+    padding: 7px 9px;
+    font-size: 0.75rem;
   }
 
   .availabilityGroup {

@@ -2,7 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { type FormEvent, useMemo, useState, useTransition } from "react";
-import { upsertScheduleAvailabilityAction } from "@/features/schedule/actions/schedule-actions";
+import {
+  deleteScheduleAvailabilityAction,
+  upsertScheduleAvailabilityAction,
+} from "@/features/schedule/actions/schedule-actions";
 import { AVAILABILITY_CONFIG } from "@/features/schedule/constants/schedule-config";
 import type {
   AvailabilityInput,
@@ -80,6 +83,27 @@ export function AvailabilityForm({
 
     startTransition(async () => {
       const result = await upsertScheduleAvailabilityAction(input);
+      if (!result.ok) {
+        setMessage(result.message);
+        return;
+      }
+      onSaved(result.message);
+      onClose();
+      router.refresh();
+    });
+  }
+
+  function remove() {
+    if (!existing) return;
+    if (!window.confirm("この参加可能情報を削除して、未回答に戻しますか？")) {
+      return;
+    }
+    setMessage("");
+    startTransition(async () => {
+      const result = await deleteScheduleAvailabilityAction(
+        existing.id,
+        existing.version,
+      );
       if (!result.ok) {
         setMessage(result.message);
         return;
@@ -217,6 +241,16 @@ export function AvailabilityForm({
             <button type="button" className={styles.secondaryButton} onClick={onClose}>
               キャンセル
             </button>
+            {existing ? (
+              <button
+                type="button"
+                className={styles.dangerButton}
+                disabled={isPending}
+                onClick={remove}
+              >
+                {isPending ? "処理中…" : "削除"}
+              </button>
+            ) : null}
             <button type="submit" className={styles.primaryButton} disabled={isPending}>
               {isPending ? "保存中…" : "保存する"}
             </button>
