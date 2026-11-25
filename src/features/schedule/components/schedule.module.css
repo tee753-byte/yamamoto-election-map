@@ -1,0 +1,759 @@
+.schedulePage {
+  display: grid;
+  gap: 18px;
+}
+
+.scheduleHero {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 26px 28px;
+  border-radius: 22px;
+  color: #fff;
+  background: linear-gradient(120deg, #782632, #9a3b48);
+  box-shadow: 0 14px 34px rgba(100, 32, 43, 0.18);
+}
+
+.scheduleHero p,
+.scheduleHero h1,
+.scheduleHero span {
+  margin: 0;
+}
+
+.scheduleHero p {
+  color: #f7d8dc;
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.scheduleHero h1 {
+  margin: 3px 0;
+  font-size: clamp(1.65rem, 4vw, 2.3rem);
+}
+
+.scheduleHero > div > span {
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.6;
+}
+
+.heroIcon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.addButton,
+.primaryButton,
+.availabilityButton,
+.secondaryButton,
+.dangerButton {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.addButton {
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.primaryButton {
+  border: 0;
+  color: #fff;
+  background: #862d39;
+}
+
+.availabilityButton,
+.secondaryButton {
+  border: 1px solid #cfc7c4;
+  color: #64202b;
+  background: #fff;
+}
+
+.dangerButton {
+  border: 1px solid #e0b4ba;
+  color: #9b1c2b;
+  background: #fff5f6;
+}
+
+.primaryButton:disabled,
+.dangerButton:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.viewTabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #ded9d7;
+}
+
+.viewTabs button {
+  min-height: 44px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 13px;
+  border: 0;
+  border-radius: 10px;
+  color: #716a6c;
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.viewTabs button.activeTab {
+  color: #fff;
+  background: #862d39;
+}
+
+.notice {
+  margin: 0;
+  padding: 12px 15px;
+  border-radius: 10px;
+  color: #31586e;
+  background: #edf4f7;
+  font-weight: 800;
+}
+
+.listPanel,
+.calendarPanel {
+  padding: 24px;
+  border: 1px solid rgba(134, 45, 57, 0.13);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 9px 26px rgba(48, 45, 46, 0.06);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.sectionHeader h2,
+.sectionHeader p {
+  margin: 0;
+}
+
+.kicker {
+  color: #862d39;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.emptyState,
+.helperText {
+  color: #716a6c;
+  line-height: 1.7;
+}
+
+.dayGroup {
+  padding: 18px 0;
+  border-top: 1px solid #ece7e5;
+}
+
+.dayHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+
+.dayHeader time,
+.availabilityGroup time {
+  color: #862d39;
+  font-weight: 900;
+}
+
+.dayHeader button {
+  border: 0;
+  color: #862d39;
+  background: transparent;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.dayEvents {
+  display: grid;
+  gap: 8px;
+}
+
+.eventRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: 5px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 78px;
+  padding: 13px 14px 13px 10px;
+  overflow: hidden;
+  border: 1px solid #e6e0de;
+  border-radius: 13px;
+  color: #302d2e;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.eventRow:hover,
+.eventRow:focus-visible {
+  border-color: #b96675;
+  outline: none;
+  box-shadow: 0 5px 16px rgba(100, 32, 43, 0.08);
+}
+
+.cancelledEvent {
+  opacity: 0.62;
+}
+
+.cancelledEvent .eventMain strong {
+  text-decoration: line-through;
+}
+
+.categoryBar {
+  align-self: stretch;
+  border-radius: 999px;
+  background: #9d9697;
+}
+
+.categoryBar.important,
+.calendarEvent.important {
+  background: #a33b49;
+}
+
+.categoryBar.meeting,
+.calendarEvent.meeting {
+  background: #5c718c;
+}
+
+.categoryBar.work,
+.calendarEvent.work {
+  background: #4e7b63;
+}
+
+.categoryBar.deadline,
+.calendarEvent.deadline {
+  background: #b06a2f;
+}
+
+.categoryBar.other,
+.calendarEvent.other {
+  background: #756b78;
+}
+
+.eventMain {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.eventTitleLine,
+.eventMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.eventTitleLine strong {
+  font-size: 1rem;
+}
+
+.eventMeta {
+  color: #716a6c;
+  font-size: 0.8rem;
+}
+
+.statusBadge {
+  display: inline-flex;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.confirmed {
+  color: #2f6647;
+  background: #e2f0e7;
+}
+
+.tentative {
+  color: #5c5260;
+  background: #eee9ef;
+}
+
+.needsReview {
+  color: #965019;
+  background: #fdebdc;
+}
+
+.cancelled {
+  color: #7c7375;
+  background: #ece9e9;
+}
+
+.confirmation {
+  color: #9a4b19;
+  font-size: 0.77rem;
+  font-weight: 800;
+}
+
+.memberChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.memberChip {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--member-color);
+  background: var(--member-bg);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.memberChip.unavailable {
+  opacity: 0.62;
+  text-decoration: line-through;
+}
+
+.memberChip.undecided {
+  opacity: 0.72;
+  border: 1px dashed currentcolor;
+}
+
+.calendarToolbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.calendarToolbar h2 {
+  margin: 0;
+  text-align: center;
+}
+
+.calendarToolbar button {
+  min-width: 42px;
+  min-height: 42px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #d8d0ce;
+  border-radius: 10px;
+  color: #64202b;
+  background: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.calendarToolbar .todayButton {
+  padding: 8px 12px;
+}
+
+.weekHeader,
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.weekHeader span {
+  padding: 8px;
+  color: #716a6c;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.calendarDay {
+  position: relative;
+  min-height: 122px;
+  padding: 7px;
+  border-top: 1px solid #e9e4e2;
+  border-left: 1px solid #e9e4e2;
+  background: #fff;
+}
+
+.calendarDay:nth-child(7n) {
+  border-right: 1px solid #e9e4e2;
+}
+
+.calendarDay:nth-last-child(-n + 7) {
+  border-bottom: 1px solid #e9e4e2;
+}
+
+.outsideMonth {
+  background: #faf8f7;
+  opacity: 0.55;
+}
+
+.today {
+  background: #fff9f0;
+}
+
+.dateButton {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #302d2e;
+  background: transparent;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.today .dateButton {
+  color: #fff;
+  background: #862d39;
+}
+
+.calendarEvents {
+  display: grid;
+  gap: 4px;
+}
+
+.calendarEvent {
+  width: 100%;
+  padding: 5px 6px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  font: inherit;
+  font-size: 0.67rem;
+  font-weight: 800;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.calendarEvents > span,
+.availabilityCount {
+  color: #716a6c;
+  font-size: 0.65rem;
+}
+
+.availabilityCount {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  color: #38634a;
+  font-weight: 800;
+}
+
+.availabilityGroup {
+  display: grid;
+  grid-template-columns: 145px 1fr;
+  gap: 16px;
+  padding: 16px 0;
+  border-top: 1px solid #ece7e5;
+}
+
+.availabilityGroup .memberChips {
+  margin-top: 0;
+}
+
+.modalBackdrop {
+  position: fixed;
+  z-index: 1600;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(29, 24, 25, 0.48);
+  backdrop-filter: blur(3px);
+}
+
+.modal {
+  width: min(760px, 100%);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  padding: 26px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+}
+
+.modalSmall {
+  width: min(580px, 100%);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.modalHeader h2,
+.modalHeader p {
+  margin: 0;
+}
+
+.closeButton {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 50%;
+  color: #302d2e;
+  background: #f1eeec;
+  font-size: 1.45rem;
+  cursor: pointer;
+}
+
+.scheduleForm {
+  display: grid;
+  gap: 15px;
+}
+
+.scheduleForm label {
+  display: grid;
+  gap: 6px;
+  color: #302d2e;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.scheduleForm label > span {
+  color: #862d39;
+  font-size: 0.68rem;
+}
+
+.scheduleForm input,
+.scheduleForm select,
+.scheduleForm textarea {
+  width: 100%;
+  min-height: 46px;
+  padding: 9px 11px;
+  border: 1px solid #bfb8b4;
+  border-radius: 9px;
+  color: #302d2e;
+  background: #fff;
+  font: inherit;
+  font-weight: 500;
+}
+
+.scheduleForm textarea {
+  min-height: auto;
+  resize: vertical;
+}
+
+.scheduleForm input:focus,
+.scheduleForm select:focus,
+.scheduleForm textarea:focus {
+  border-color: #862d39;
+  outline: 3px solid rgba(134, 45, 57, 0.12);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.scheduleForm .checkField {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+}
+
+.checkField input {
+  width: 20px;
+  min-height: 20px;
+}
+
+.formActions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.formError {
+  margin: 0;
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.detailBadges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  color: #716a6c;
+  font-size: 0.82rem;
+}
+
+.detailList {
+  margin: 0;
+}
+
+.detailList > div {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid #ece7e5;
+}
+
+.detailList dt {
+  color: #716a6c;
+  font-size: 0.78rem;
+}
+
+.detailList dd {
+  margin: 0;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.detailLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 17px 0;
+}
+
+.detailLinks a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #862d39;
+  font-weight: 800;
+}
+
+@media (max-width: 760px) {
+  .scheduleHero {
+    grid-template-columns: auto 1fr;
+    padding: 20px;
+  }
+
+  .scheduleHero .addButton {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .listPanel,
+  .calendarPanel {
+    padding: 16px;
+  }
+
+  .sectionHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .viewTabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    overflow-x: visible;
+  }
+
+  .viewTabs button {
+    min-width: 0;
+    justify-content: center;
+    gap: 5px;
+    padding: 9px 5px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .eventRow {
+    grid-template-columns: 5px 1fr auto;
+  }
+
+  .calendarPanel {
+    padding: 12px;
+    overflow-x: auto;
+  }
+
+  .weekHeader,
+  .calendarGrid {
+    min-width: 700px;
+  }
+
+  .availabilityGroup {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .modalBackdrop {
+    align-items: end;
+    padding: 8px;
+  }
+
+  .modal,
+  .modalSmall {
+    width: 100%;
+    max-height: calc(100dvh - 16px);
+    padding: 20px 16px;
+    border-radius: 20px 20px 14px 14px;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .formActions > * {
+    flex: 1;
+  }
+}
+
+@media (max-width: 390px) {
+  .heroIcon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .scheduleHero {
+    gap: 12px;
+  }
+
+  .scheduleHero > div > span {
+    font-size: 0.78rem;
+  }
+
+  .memberChip {
+    font-size: 0.7rem;
+  }
+}

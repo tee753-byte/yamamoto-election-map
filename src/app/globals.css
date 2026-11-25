@@ -300,13 +300,109 @@ p {
   background: var(--ink);
 }
 
-.insight-card {
-  grid-column: 1 / -1;
-  min-height: 270px;
-}
-
 .insight-card .feature-icon {
   background: #385a6b;
+}
+
+.schedule-card .feature-icon {
+  background: #4e7562;
+}
+
+.home-schedule {
+  margin-top: 24px;
+  padding: 20px 24px;
+  border: 1px solid rgba(134, 45, 57, 0.12);
+  border-radius: var(--radius-md);
+  background: white;
+  box-shadow: 0 8px 24px rgba(23, 41, 58, 0.05);
+}
+
+.home-schedule-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.home-schedule-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.home-schedule-heading a {
+  color: var(--brand);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.home-schedule-list {
+  display: grid;
+}
+
+.home-schedule-item {
+  display: grid;
+  grid-template-columns: 145px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 58px;
+  padding: 10px 0;
+  border-top: 1px solid #ece7e5;
+  text-decoration: none;
+}
+
+.home-schedule-item time {
+  color: var(--brand);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.home-schedule-item > span,
+.home-schedule-item strong,
+.home-schedule-item small {
+  display: block;
+}
+
+.home-schedule-item small,
+.home-schedule-empty {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.home-schedule-item em {
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.schedule-status-confirmed {
+  color: #2f6647;
+  background: #e2f0e7;
+}
+
+.schedule-status-tentative {
+  color: #5c5260;
+  background: #eee9ef;
+}
+
+.schedule-status-needs_review {
+  color: #965019;
+  background: #fdebdc;
+}
+
+.schedule-status-cancelled {
+  color: #7c7375;
+  background: #ece9e9;
+}
+
+.home-schedule-empty {
+  margin: 8px 0 0;
 }
 
 .card-tags {
@@ -1003,8 +1099,17 @@ p {
     padding: 24px;
   }
 
-  .insight-card {
-    grid-column: auto;
+  .home-schedule {
+    padding: 17px;
+  }
+
+  .home-schedule-item {
+    grid-template-columns: 90px 1fr;
+  }
+
+  .home-schedule-item em {
+    grid-column: 2;
+    justify-self: start;
   }
 
   .home-note {

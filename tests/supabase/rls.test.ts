@@ -293,3 +293,171 @@ test("RLS・役割・競合防止・二重送信防止が機能する", async ()
     admin.auth.signOut(),
   ]);
 });
+
+test("スケジュールのRLS・削除権限・同時更新・参加可能時間が機能する", async () => {
+  const workerId = "a0000000-0000-0000-0000-000000000002";
+  const adminId = "a0000000-0000-0000-0000-000000000001";
+  const offset = Date.now() % 3000;
+  const date = new Date(Date.UTC(2040, 0, 1 + offset));
+  const workerDate = date.toISOString().slice(0, 10);
+  date.setUTCDate(date.getUTCDate() + 1);
+  const adminProxyDate = date.toISOString().slice(0, 10);
+
+  const eventParams = (title: string, startDate: string) => ({
+    p_title: title,
+    p_start_date: startDate,
+    p_end_date: null,
+    p_start_time: "09:00",
+    p_end_time: "10:00",
+    p_is_all_day: false,
+    p_time_tbd: false,
+    p_time_note: null,
+    p_category: "meeting",
+    p_status: "tentative",
+    p_location: null,
+    p_assignee_text: null,
+    p_description: "RLS統合テスト",
+    p_confirmation_note: null,
+    p_google_maps_url: null,
+    p_related_url: null,
+  });
+
+  const anonymous = localClient();
+  const anonymousRead = await anonymous.from("schedule_events").select("id");
+  assert.ok(
+    anonymousRead.error || anonymousRead.data?.length === 0,
+    "非ログイン利用者は予定を取得できないこと",
+  );
+
+  const viewer = await signIn("viewer@yamamoto-map.local", "demo-viewer-2026");
+  const viewerRead = await viewer.from("schedule_events").select("id");
+  assert.equal(viewerRead.error, null, "ログイン済み閲覧者は予定を閲覧できること");
+  const viewerCreate = await viewer.rpc("create_schedule_event", {
+    ...eventParams(`閲覧者作成拒否-${crypto.randomUUID()}`, workerDate),
+  });
+  assert.match(viewerCreate.error?.message ?? "", /not authorized/);
+
+  const worker = await signIn("worker@yamamoto-map.local", "demo-worker-2026");
+  const directInsert = await worker.from("schedule_events").insert({
+    title: "直接追加拒否",
+    start_date: workerDate,
+    created_by: workerId,
+    updated_by: workerId,
+  });
+  assert.ok(directInsert.error, "テーブルへの直接追加は拒否されること");
+
+  const workerCreate = await worker.rpc("create_schedule_event", {
+    ...eventParams(`作業担当者の予定-${crypto.randomUUID()}`, workerDate),
+  });
+  assert.equal(workerCreate.error, null, "作業担当者は予定を登録できること");
+  const workerEventId = workerCreate.data as string;
+
+  const workerUpdate = await worker.rpc("update_schedule_event", {
+    p_event_id: workerEventId,
+    p_expected_version: 1,
+    ...eventParams("更新した予定", workerDate),
+  });
+  assert.equal(workerUpdate.error, null, "作業担当者は予定を編集できること");
+
+  const staleUpdate = await worker.rpc("update_schedule_event", {
+    p_event_id: workerEventId,
+    p_expected_version: 1,
+    ...eventParams("競合する更新", workerDate),
+  });
+  assert.match(staleUpdate.error?.message ?? "", /conflict/);
+
+  const admin = await signIn("admin@yamamoto-map.local", "demo-admin-2026");
+  const adminCreate = await admin.rpc("create_schedule_event", {
+    ...eventParams(`管理者の予定-${crypto.randomUUID()}`, adminProxyDate),
+  });
+  assert.equal(adminCreate.error, null);
+  const adminEventId = adminCreate.data as string;
+
+  const workerDeletesOthers = await worker.rpc("delete_schedule_event", {
+    p_event_id: adminEventId,
+    p_expected_version: 1,
+  });
+  assert.match(workerDeletesOthers.error?.message ?? "", /not authorized to delete/);
+
+  const selfAvailability = await worker.rpc("upsert_schedule_availability", {
+    p_availability_id: null,
+    p_expected_version: null,
+    p_user_id: workerId,
+    p_availability_date: workerDate,
+    p_status: "available",
+    p_is_all_day: false,
+    p_start_time: "09:00",
+    p_end_time: "17:00",
+    p_note: "統合テスト",
+  });
+  assert.equal(selfAvailability.error, null, "本人は参加可能時間を登録できること");
+  const selfAvailabilityId = selfAvailability.data as string;
+
+  const anotherAvailability = await worker.rpc("upsert_schedule_availability", {
+    p_availability_id: null,
+    p_expected_version: null,
+    p_user_id: adminId,
+    p_availability_date: workerDate,
+    p_status: "available",
+    p_is_all_day: true,
+    p_start_time: null,
+    p_end_time: null,
+    p_note: null,
+  });
+  assert.match(
+    anotherAvailability.error?.message ?? "",
+    /not authorized for another user/,
+  );
+
+  const adminProxy = await admin.rpc("upsert_schedule_availability", {
+    p_availability_id: null,
+    p_expected_version: null,
+    p_user_id: workerId,
+    p_availability_date: adminProxyDate,
+    p_status: "undecided",
+    p_is_all_day: false,
+    p_start_time: null,
+    p_end_time: null,
+    p_note: "管理者代理登録テスト",
+  });
+  assert.equal(adminProxy.error, null, "管理者は代理登録できること");
+  const adminProxyId = adminProxy.data as string;
+
+  const workerDeleteOwnAvailability = await worker.rpc("delete_schedule_availability", {
+    p_availability_id: selfAvailabilityId,
+    p_expected_version: 1,
+  });
+  assert.equal(
+    workerDeleteOwnAvailability.error,
+    null,
+    "本人は自分の参加可能情報を未回答へ戻せること",
+  );
+
+  const adminDeleteProxyAvailability = await admin.rpc("delete_schedule_availability", {
+    p_availability_id: adminProxyId,
+    p_expected_version: 1,
+  });
+  assert.equal(
+    adminDeleteProxyAvailability.error,
+    null,
+    "管理者は代理登録した参加可能情報を削除できること",
+  );
+
+  const workerDeleteOwn = await worker.rpc("delete_schedule_event", {
+    p_event_id: workerEventId,
+    p_expected_version: 2,
+  });
+  assert.equal(workerDeleteOwn.error, null, "作業担当者は自分の予定を削除できること");
+
+  const adminDeleteAny = await admin.rpc("delete_schedule_event", {
+    p_event_id: adminEventId,
+    p_expected_version: 1,
+  });
+  assert.equal(adminDeleteAny.error, null, "管理者はすべての予定を削除できること");
+
+  await Promise.all([
+    viewer.auth.signOut(),
+    worker.auth.signOut(),
+    admin.auth.signOut(),
+  ]);
+});

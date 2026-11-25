@@ -1,4 +1,10 @@
-import { BarChart3, Map as MapIcon, MapPinned, UsersRound } from "lucide-react";
+import {
+  BarChart3,
+  CalendarDays,
+  Map as MapIcon,
+  MapPinned,
+  UsersRound,
+} from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/features/auth/services/session";
@@ -7,6 +13,9 @@ import {
   listPosterWork,
 } from "@/features/poster-map/services/poster-service";
 import { listPostingAreas } from "@/features/posting-map/services/posting-service";
+import { STATUS_CONFIG } from "@/features/schedule/constants/schedule-config";
+import { listUpcomingScheduleEvents } from "@/features/schedule/services/schedule-service";
+import { compactTime, formatJapaneseDate } from "@/features/schedule/utils/date";
 import { AuthenticatedShell } from "@/features/shared/components/authenticated-shell";
 import { calculateProgress } from "@/lib/utils/progress";
 
@@ -18,9 +27,10 @@ export default async function HomePage() {
 
   const candidates = await listCandidates();
   const primaryCandidate = candidates[0];
-  const [posterWork, postingAreas] = await Promise.all([
+  const [posterWork, postingAreas, upcomingEvents] = await Promise.all([
     primaryCandidate ? listPosterWork(primaryCandidate.id) : Promise.resolve([]),
     listPostingAreas(),
+    listUpcomingScheduleEvents(3),
   ]);
   const posterProgress = calculateProgress(posterWork.map((item) => item.status));
   const postingProgress = calculateProgress(postingAreas.map((area) => area.status));
@@ -44,6 +54,41 @@ export default async function HomePage() {
           <strong>12月20日</strong>
           <small>正式データ・運用方法は事前に確定</small>
         </div>
+      </section>
+
+      <section className="home-schedule" aria-labelledby="home-schedule-title">
+        <div className="home-schedule-heading">
+          <h2 id="home-schedule-title">
+            <CalendarDays size={20} /> 直近のスケジュール
+          </h2>
+          <Link href="/schedule">すべて見る →</Link>
+        </div>
+        {upcomingEvents.length > 0 ? (
+          <div className="home-schedule-list">
+            {upcomingEvents.map((event) => (
+              <Link href="/schedule" key={event.id} className="home-schedule-item">
+                <time dateTime={event.startDate}>
+                  {formatJapaneseDate(event.startDate)}
+                </time>
+                <span>
+                  <strong>{event.title}</strong>
+                  <small>
+                    {event.isAllDay
+                      ? "終日"
+                      : event.timeTbd
+                        ? event.timeNote || "時間未定"
+                        : compactTime(event.startTime) || event.timeNote || "時刻未定"}
+                  </small>
+                </span>
+                <em className={`schedule-status-${event.status}`}>
+                  {STATUS_CONFIG[event.status].label}
+                </em>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <p className="home-schedule-empty">今後の予定はまだ登録されていません。</p>
+        )}
       </section>
 
       <section className="home-grid" aria-label="機能を選択">
@@ -90,6 +135,16 @@ export default async function HomePage() {
             <span>地域別統計</span>
           </div>
           <span className="card-link">分析データを開く →</span>
+        </Link>
+
+        <Link href="/schedule" className="feature-card schedule-card">
+          <span className="feature-icon">
+            <CalendarDays size={30} aria-hidden />
+          </span>
+          <span className="feature-kicker">予定・情報共有</span>
+          <h2>スケジュール</h2>
+          <p>今後の予定やメンバーの参加可能時間を確認・共有します。</p>
+          <span className="card-link">スケジュールを開く →</span>
         </Link>
       </section>
 
