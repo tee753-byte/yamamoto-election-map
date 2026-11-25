@@ -56,6 +56,7 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.GeoJSON | null>(null);
   const highlightLayerRef = useRef<L.GeoJSON | null>(null);
+  const highlightRequestRef = useRef(0);
   const [boundaries, setBoundaries] =
     useState<FeatureCollection<Geometry, BoundaryProperties>>();
   const [census, setCensus] = useState<CensusData>();
@@ -195,6 +196,8 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
 
   useEffect(() => {
     let disposed = false;
+    const requestId = highlightRequestRef.current + 1;
+    highlightRequestRef.current = requestId;
 
     async function highlightSelectedArea() {
       highlightLayerRef.current?.remove();
@@ -202,7 +205,8 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
       if (!selected || !boundaries) return;
 
       const leaflet = (await import("leaflet")).default;
-      if (disposed || !mapRef.current) return;
+      if (disposed || requestId !== highlightRequestRef.current || !mapRef.current)
+        return;
 
       const selectedName = normalizeAreaName(selected.name);
       const matchingFeatures = boundaries.features.filter(
@@ -237,8 +241,8 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
         mapRef.current.flyToBounds(bounds, {
           animate: true,
           duration: 0.45,
-          maxZoom: 15,
-          padding: [36, 36],
+          maxZoom: 14,
+          padding: [56, 56],
         });
       }
     }
@@ -246,6 +250,7 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
     void highlightSelectedArea();
     return () => {
       disposed = true;
+      highlightRequestRef.current += 1;
       highlightLayerRef.current?.remove();
       highlightLayerRef.current = null;
     };
