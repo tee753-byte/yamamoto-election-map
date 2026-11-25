@@ -516,6 +516,30 @@
   background: #faf3f4;
   outline: 0;
 }
+.compactList button[aria-pressed="true"] {
+  color: #64202b;
+  background: #fff8d6;
+  box-shadow: inset 4px 0 0 #ffd43b;
+}
+.selectedBoundary {
+  animation: selectedBoundaryPulse 1.35s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 5px rgba(255, 212, 59, 0.95));
+}
+
+@keyframes selectedBoundaryPulse {
+  from {
+    stroke-opacity: 0.72;
+  }
+  to {
+    stroke-opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selectedBoundary {
+    animation: none;
+  }
+}
 .sourceGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

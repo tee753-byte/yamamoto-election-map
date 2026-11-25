@@ -55,6 +55,7 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
   const containerRef = useRef<HTMLElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.GeoJSON | null>(null);
+  const highlightLayerRef = useRef<L.GeoJSON | null>(null);
   const [boundaries, setBoundaries] =
     useState<FeatureCollection<Geometry, BoundaryProperties>>();
   const [census, setCensus] = useState<CensusData>();
@@ -181,6 +182,7 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
         })
         .addTo(mapRef.current);
       layerRef.current = layer;
+      highlightLayerRef.current?.bringToFront();
       if (mapRef.current && layer.getBounds().isValid())
         mapRef.current.fitBounds(layer.getBounds(), { padding: [8, 8] });
     }
@@ -191,8 +193,68 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
     };
   }, [activeAreaByBoundaryCode, boundaries, census, indicator]);
 
+  useEffect(() => {
+    let disposed = false;
+
+    async function highlightSelectedArea() {
+      highlightLayerRef.current?.remove();
+      highlightLayerRef.current = null;
+      if (!selected || !boundaries) return;
+
+      const leaflet = (await import("leaflet")).default;
+      if (disposed || !mapRef.current) return;
+
+      const selectedName = normalizeAreaName(selected.name);
+      const matchingFeatures = boundaries.features.filter(
+        (feature) =>
+          feature.properties.areaCode === selected.areaCode ||
+          normalizeAreaName(feature.properties.name) === selectedName,
+      );
+      if (matchingFeatures.length === 0) return;
+      const selectedBoundaries: FeatureCollection<Geometry, BoundaryProperties> = {
+        type: "FeatureCollection",
+        features: matchingFeatures,
+      };
+
+      const highlightLayer = leaflet
+        .geoJSON(selectedBoundaries, {
+          interactive: false,
+          style: {
+            className: styles.selectedBoundary,
+            color: "#ffd43b",
+            fillColor: "#fff3a3",
+            fillOpacity: 0.22,
+            opacity: 1,
+            weight: 5,
+          },
+        })
+        .addTo(mapRef.current);
+      highlightLayer.bringToFront();
+      highlightLayerRef.current = highlightLayer;
+
+      const bounds = highlightLayer.getBounds();
+      if (bounds.isValid()) {
+        mapRef.current.flyToBounds(bounds, {
+          animate: true,
+          duration: 0.45,
+          maxZoom: 15,
+          padding: [36, 36],
+        });
+      }
+    }
+
+    void highlightSelectedArea();
+    return () => {
+      disposed = true;
+      highlightLayerRef.current?.remove();
+      highlightLayerRef.current = null;
+    };
+  }, [boundaries, selected]);
+
   useEffect(
     () => () => {
+      highlightLayerRef.current?.remove();
+      highlightLayerRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
       layerRef.current = null;
@@ -284,7 +346,9 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
           />
           <div className={styles.mapCaption}>
             <Layers3 size={15} />
-            境界：令和2年国勢調査 町丁・字等（109形状）
+            {selected
+              ? `黄色の枠：${selected.name}`
+              : "境界：令和2年国勢調査 町丁・字等（109形状）"}
           </div>
           <fieldset className={styles.mapLegend}>
             <legend>{config.label}</legend>
@@ -366,16 +430,22 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
             {mode === "latest" ? "最新統計" : "2020年国勢調査"}・{config.label}
           </p>
           <div className={styles.compactList}>
-            {(query ? filteredAreas : activeAreas.slice(0, 8)).map((area) => (
-              <button
-                key={area.code}
-                type="button"
-                onClick={() => setSelected({ areaCode: area.code, name: area.name })}
-              >
-                <span>{area.name}</span>
-                <strong>{formatIndicatorValue(area, indicator)}</strong>
-              </button>
-            ))}
+            {(query ? filteredAreas : activeAreas.slice(0, 8)).map((area) => {
+              const isSelected =
+                normalizeAreaName(selected?.name ?? "") ===
+                normalizeAreaName(area.name);
+              return (
+                <button
+                  aria-pressed={isSelected}
+                  key={area.code}
+                  type="button"
+                  onClick={() => setSelected({ areaCode: area.code, name: area.name })}
+                >
+                  <span>{area.name}</span>
+                  <strong>{formatIndicatorValue(area, indicator)}</strong>
+                </button>
+              );
+            })}
           </div>
         </aside>
       </div>
