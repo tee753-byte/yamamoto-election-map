@@ -39,9 +39,7 @@ export default async function HomePage() {
         <span>
           <strong>告示日</strong> 2026年12月20日
         </span>
-        <span>
-          ポスター・ポスティングは架空データです。正式資料の受領後に差し替えます。
-        </span>
+        <span>ポスターマップは架空データです。正式資料の受領後に差し替えます。</span>
       </aside>
 
       <section className="home-schedule" aria-labelledby="home-schedule-title">
@@ -100,7 +98,7 @@ export default async function HomePage() {
           <span className="feature-icon">
             <MapIcon size={30} aria-hidden />
           </span>
-          <span className="feature-kicker">告示前の適法性確認済み活動</span>
+          <span className="feature-kicker">配布状況の共有</span>
           <h2>ポスティングマップ</h2>
           <p>区域ごとの担当と配布数を記録し、重複を防ぎます。</p>
           <div className="card-progress-row">

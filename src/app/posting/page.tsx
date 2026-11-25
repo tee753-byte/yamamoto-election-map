@@ -24,12 +24,10 @@ export default async function PostingPage() {
         <Link href="/" className="back-link">
           <ChevronLeft size={18} /> ホームへ
         </Link>
-        <p className="eyebrow">告示前の適法性確認済み活動</p>
+        <p className="eyebrow">配布状況の共有</p>
         <h1>ポスティングマップ</h1>
         <p>
-          {areas.some((area) => area.isSample)
-            ? "架空の試作区域が含まれています。管理者は地図上で実際の配布区域を追加できます。"
-            : "区域ごとの担当と配布数を共有します。管理者は地図上で配布区域を追加できます。"}
+          区域ごとの担当と配布数を共有します。管理者は地図上で配布区域を追加できます。
         </p>
       </div>
       <ProgressPanel title="区域の進捗" summary={summary} countUnit="区域" />

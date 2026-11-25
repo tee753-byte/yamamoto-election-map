@@ -366,9 +366,6 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
           className="leaflet-map"
           aria-label="福津市の配布区域地図"
         />
-        {areas.some((area) => area.isSample) ? (
-          <div className="sample-map-notice">架空の試作区域が含まれています</div>
-        ) : null}
         {mapError ? <div className="map-error-message">{mapError}</div> : null}
       </div>
 
@@ -456,7 +453,7 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
           >
             <X size={22} />
           </button>
-          <p className="eyebrow">{selected.areaCode} / 架空データ</p>
+          <p className="eyebrow">区域番号 {selected.areaCode}</p>
           <h2>{selected.name}</h2>
           <dl className="detail-list">
             <div>
