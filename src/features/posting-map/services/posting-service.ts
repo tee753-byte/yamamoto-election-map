@@ -72,6 +72,79 @@ interface AssignPostingAreaInput {
   currentUserRole: UserRole;
 }
 
+interface CreatePostingAreaInput {
+  areaCode: string;
+  name: string;
+  geometry: GeoJsonPolygon;
+  targetCount: number | null;
+  note: string | null;
+  requestId: string;
+  currentUserRole: UserRole;
+}
+
+export type PostingAreaImportInput = Omit<
+  CreatePostingAreaInput,
+  "requestId" | "currentUserRole"
+>;
+
+export async function createPostingArea(
+  supabase: SupabaseClient,
+  input: CreatePostingAreaInput,
+) {
+  if (input.currentUserRole !== "admin") {
+    return { ok: false, message: "区域を登録できるのは管理者だけです。" };
+  }
+
+  const { error } = await supabase.rpc("create_posting_area", {
+    p_area_code: input.areaCode,
+    p_name: input.name,
+    p_geometry: input.geometry,
+    p_target_count: input.targetCount,
+    p_note: input.note,
+    p_request_id: input.requestId,
+  });
+
+  if (error) {
+    const duplicate = error.message.includes("posting_areas_area_code_key");
+    const noPlan = error.message.includes("active posting plan not found");
+    return {
+      ok: false,
+      message: duplicate
+        ? "同じ区域番号がすでにあります。別の番号を入力してください。"
+        : noPlan
+          ? "有効なポスティング活動が設定されていません。"
+          : `区域を登録できませんでした: ${error.message}`,
+    };
+  }
+
+  return { ok: true, message: "配布区域を登録しました。" };
+}
+
+export async function importPostingAreas(
+  supabase: SupabaseClient,
+  areas: PostingAreaImportInput[],
+  currentUserRole: UserRole,
+) {
+  if (currentUserRole !== "admin") {
+    return { ok: false, message: "区域を一括登録できるのは管理者だけです。" };
+  }
+
+  const { data, error } = await supabase.rpc("import_posting_areas", {
+    p_areas: areas,
+  });
+  if (error) {
+    const duplicate = error.message.includes("posting_areas_area_code_key");
+    return {
+      ok: false,
+      message: duplicate
+        ? "同じ区域番号が含まれています。ファイルの区域番号をご確認ください。"
+        : `区域を一括登録できませんでした: ${error.message}`,
+    };
+  }
+
+  return { ok: true, message: `${Number(data)}区域を一括登録しました。` };
+}
+
 export async function assignPostingArea(
   supabase: SupabaseClient,
   input: AssignPostingAreaInput,

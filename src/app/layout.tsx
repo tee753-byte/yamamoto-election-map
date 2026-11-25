@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "leaflet/dist/leaflet.css";
+import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import "./globals.css";
 import { APP_DESCRIPTION, APP_NAME, BRAND_COLOR } from "@/lib/constants/app";
 

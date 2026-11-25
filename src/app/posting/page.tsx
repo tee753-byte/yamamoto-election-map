@@ -27,7 +27,9 @@ export default async function PostingPage() {
         <p className="eyebrow">告示前の適法性確認済み活動</p>
         <h1>ポスティングマップ</h1>
         <p>
-          現在の区域・目標数は試作用です。実運用前に活動内容と期間を管理者が確定します。
+          {areas.some((area) => area.isSample)
+            ? "架空の試作区域が含まれています。管理者は地図上で実際の配布区域を追加できます。"
+            : "区域ごとの担当と配布数を共有します。管理者は地図上で配布区域を追加できます。"}
         </p>
       </div>
       <ProgressPanel title="区域の進捗" summary={summary} countUnit="区域" />

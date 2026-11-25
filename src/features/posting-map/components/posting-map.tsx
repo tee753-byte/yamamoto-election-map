@@ -1,10 +1,13 @@
 "use client";
 
 import type L from "leaflet";
-import { Pencil, X } from "lucide-react";
+import { LocateFixed, MapPinPlus, Pencil, Upload, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   assignPostingAreaAction,
+  createPostingAreaAction,
+  importPostingAreasAction,
   recordPostingProgressAction,
 } from "@/features/posting-map/actions/posting-actions";
 import { STATUS_CONFIG } from "@/features/shared/constants/status-config";
@@ -20,16 +23,89 @@ interface PostingMapProps {
   currentUserRole: UserRole;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function propertyText(properties: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = properties[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number") return String(value);
+  }
+  return "";
+}
+
+function parsePostingGeoJson(value: unknown) {
+  if (
+    !isRecord(value) ||
+    value.type !== "FeatureCollection" ||
+    !Array.isArray(value.features)
+  ) {
+    throw new Error("FeatureCollection形式のGeoJSONではありません。");
+  }
+
+  return value.features.map((rawFeature, index) => {
+    if (!isRecord(rawFeature) || rawFeature.type !== "Feature") {
+      throw new Error(`${index + 1}件目がGeoJSONのFeatureではありません。`);
+    }
+    const geometry = rawFeature.geometry;
+    if (
+      !isRecord(geometry) ||
+      geometry.type !== "Polygon" ||
+      !Array.isArray(geometry.coordinates)
+    ) {
+      throw new Error(`${index + 1}件目はPolygon形式ではありません。`);
+    }
+    const properties = isRecord(rawFeature.properties) ? rawFeature.properties : {};
+    const areaCode = propertyText(properties, ["areaCode", "area_code", "code"]);
+    const name = propertyText(properties, ["name", "areaName", "area_name"]);
+    if (!areaCode || !name) {
+      throw new Error(
+        `${index + 1}件目のpropertiesに区域番号（areaCode）または名前（name）がありません。`,
+      );
+    }
+    const rawTargetCount = properties.targetCount ?? properties.target_count;
+    const targetCount =
+      rawTargetCount === undefined || rawTargetCount === null || rawTargetCount === ""
+        ? null
+        : Number(rawTargetCount);
+    const note = propertyText(properties, ["note", "memo"]) || null;
+    return {
+      areaCode,
+      name,
+      geometry: {
+        type: "Polygon" as const,
+        coordinates: geometry.coordinates as number[][][],
+      },
+      targetCount,
+      note,
+    };
+  });
+}
+
 export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
+  const router = useRouter();
   const containerRef = useRef<HTMLElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  const locationLayerRef = useRef<L.LayerGroup | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState("");
   const [selected, setSelected] = useState<PostingArea | null>(null);
   const [assignmentLabel, setAssignmentLabel] = useState("");
   const [editingAssignment, setEditingAssignment] = useState(false);
   const [deliveredIncrement, setDeliveredIncrement] = useState(0);
   const [filter, setFilter] = useState<WorkStatus | "all">("all");
+  const [drawing, setDrawing] = useState(false);
+  const [draftGeometry, setDraftGeometry] = useState<PostingArea["geometry"] | null>(
+    null,
+  );
+  const [areaCode, setAreaCode] = useState("");
+  const [areaName, setAreaName] = useState("");
+  const [targetCount, setTargetCount] = useState("");
+  const [areaNote, setAreaNote] = useState("");
   const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -42,23 +118,64 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
     let disposed = false;
     async function initialize() {
       if (!containerRef.current || mapRef.current) return;
-      const leaflet = (await import("leaflet")).default;
-      if (disposed || !containerRef.current) return;
+      try {
+        const leaflet = (await import("leaflet")).default;
+        await import("@geoman-io/leaflet-geoman-free");
+        if (disposed || !containerRef.current) return;
 
-      const map = leaflet
-        .map(containerRef.current, { maxZoom: 18 })
-        .setView(FUKUTSU_CENTER, DEFAULT_MAP_ZOOM);
-      leaflet
-        .tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", {
-          attribution:
-            '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noreferrer">地理院タイル</a>',
-          maxZoom: 18,
-        })
-        .addTo(map);
-      mapRef.current = map;
-      layerRef.current = leaflet.layerGroup().addTo(map);
-      setMapReady(true);
-      setTimeout(() => map.invalidateSize(), 50);
+        const map = leaflet
+          .map(containerRef.current, { maxZoom: 18 })
+          .setView(FUKUTSU_CENTER, DEFAULT_MAP_ZOOM);
+        leaflet
+          .tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", {
+            attribution:
+              '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noreferrer">地理院タイル</a>',
+            maxZoom: 18,
+          })
+          .addTo(map);
+        mapRef.current = map;
+        layerRef.current = leaflet.layerGroup().addTo(map);
+        locationLayerRef.current = leaflet.layerGroup().addTo(map);
+        map.pm.setLang("ja", {
+          tooltips: {
+            firstVertex: "クリックして最初の点を置く",
+            continueLine: "クリックして次の点を置く",
+            finishPoly: "最初の点を押して区域を閉じる",
+          },
+          actions: {
+            finish: "完了",
+            cancel: "キャンセル",
+            removeLastVertex: "最後の点を削除",
+          },
+        });
+        map.on("pm:create", (event) => {
+          const feature = (event.layer as L.Polygon).toGeoJSON();
+          map.removeLayer(event.layer);
+          setDrawing(false);
+          if (feature.geometry.type !== "Polygon") {
+            setMessage("区域の形を読み取れませんでした。もう一度お試しください。");
+            return;
+          }
+          setDraftGeometry({
+            type: "Polygon",
+            coordinates: feature.geometry.coordinates,
+          });
+          setSelected(null);
+          setAreaCode("");
+          setAreaName("");
+          setTargetCount("");
+          setAreaNote("");
+        });
+        map.on("pm:drawend", () => setDrawing(false));
+        setMapError("");
+        setMapReady(true);
+        setTimeout(() => map.invalidateSize(), 50);
+      } catch (error) {
+        console.error("ポスティング地図の初期化に失敗しました。", error);
+        if (!disposed) {
+          setMapError("地図を読み込めませんでした。ページを再読み込みしてください。");
+        }
+      }
     }
     void initialize();
     return () => {
@@ -66,6 +183,7 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
       mapRef.current?.remove();
       mapRef.current = null;
       layerRef.current = null;
+      locationLayerRef.current = null;
       setMapReady(false);
     };
   }, []);
@@ -138,6 +256,121 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
     });
   }
 
+  function startDrawing() {
+    const map = mapRef.current;
+    if (!map) return;
+    setMessage("");
+    setSelected(null);
+    setDraftGeometry(null);
+    setDrawing(true);
+    map.pm.setPathOptions({
+      color: "#862D39",
+      fillColor: "#862D39",
+      fillOpacity: 0.25,
+    });
+    map.pm.enableDraw("Polygon", {
+      snappable: true,
+      snapDistance: 20,
+    });
+  }
+
+  function cancelDrawing() {
+    mapRef.current?.pm.disableDraw();
+    setDrawing(false);
+  }
+
+  function saveArea() {
+    if (!draftGeometry) return;
+    setMessage("");
+    startTransition(async () => {
+      const result = await createPostingAreaAction({
+        areaCode,
+        name: areaName,
+        geometry: draftGeometry,
+        targetCount: targetCount === "" ? null : Number(targetCount),
+        note: areaNote || null,
+        requestId: crypto.randomUUID(),
+      });
+      setMessage(result.message);
+      if (!result.ok) return;
+      setDraftGeometry(null);
+      router.refresh();
+    });
+  }
+
+  async function showCurrentLocation() {
+    if (!navigator.geolocation) {
+      setMessage("この端末では現在地を取得できません。");
+      return;
+    }
+    setMessage("現在地を確認しています…");
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        const map = mapRef.current;
+        const layer = locationLayerRef.current;
+        if (!map || !layer) return;
+        const leaflet = (await import("leaflet")).default;
+        layer.clearLayers();
+        leaflet
+          .circle([coords.latitude, coords.longitude], {
+            radius: Math.max(coords.accuracy, 20),
+            color: "#2563eb",
+            fillColor: "#60a5fa",
+            fillOpacity: 0.15,
+            weight: 2,
+          })
+          .addTo(layer);
+        leaflet
+          .circleMarker([coords.latitude, coords.longitude], {
+            radius: 8,
+            color: "#ffffff",
+            fillColor: "#2563eb",
+            fillOpacity: 1,
+            weight: 3,
+          })
+          .bindTooltip("現在地")
+          .addTo(layer);
+        map.flyTo([coords.latitude, coords.longitude], Math.max(map.getZoom(), 15));
+        setMessage("現在地を表示しました。位置情報は保存しません。");
+      },
+      () =>
+        setMessage(
+          "現在地を取得できませんでした。端末の位置情報設定をご確認ください。",
+        ),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+    );
+  }
+
+  async function importGeoJson(file: File) {
+    setMessage("");
+    try {
+      const areasToImport = parsePostingGeoJson(
+        JSON.parse(await file.text()) as unknown,
+      );
+      if (areasToImport.length < 1 || areasToImport.length > 200) {
+        throw new Error("一度に取り込める区域は1～200件です。");
+      }
+      if (
+        !window.confirm(`${areasToImport.length}区域を登録します。よろしいですか？`)
+      ) {
+        return;
+      }
+      startTransition(async () => {
+        const result = await importPostingAreasAction(areasToImport);
+        setMessage(result.message);
+        if (result.ok) router.refresh();
+      });
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "GeoJSONファイルを読み取れませんでした。",
+      );
+    } finally {
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
+  }
+
   return (
     <div className="map-workspace">
       <fieldset className="map-toolbar">
@@ -164,18 +397,146 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
           </button>
         ))}
       </fieldset>
+      <div className="map-utility-bar">
+        {currentUserRole === "admin" ? (
+          <>
+            {drawing ? (
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={cancelDrawing}
+              >
+                描画をやめる
+              </button>
+            ) : (
+              <button
+                className="button button-primary"
+                type="button"
+                disabled={!mapReady}
+                onClick={startDrawing}
+              >
+                <MapPinPlus size={18} aria-hidden /> 区域を追加
+              </button>
+            )}
+            <button
+              className="button button-secondary"
+              type="button"
+              disabled={pending}
+              onClick={() => importInputRef.current?.click()}
+            >
+              <Upload size={18} aria-hidden /> GeoJSON取込
+            </button>
+            <input
+              ref={importInputRef}
+              className="visually-hidden"
+              type="file"
+              accept=".geojson,.json,application/geo+json,application/json"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void importGeoJson(file);
+              }}
+            />
+          </>
+        ) : null}
+        <button
+          className="button button-secondary"
+          type="button"
+          disabled={!mapReady}
+          onClick={showCurrentLocation}
+        >
+          <LocateFixed size={18} aria-hidden /> 現在地
+        </button>
+        {drawing ? (
+          <span>地図上に点を置き、最初の点を押して区域を閉じます。</span>
+        ) : null}
+      </div>
       <div className="map-shell">
         <section
           ref={containerRef}
           className="leaflet-map"
           aria-label="福津市の配布区域地図"
         />
-        <div className="sample-map-notice">すべて架空の配布区域です</div>
+        {areas.some((area) => area.isSample) ? (
+          <div className="sample-map-notice">架空の試作区域が含まれています</div>
+        ) : null}
+        {mapError ? <div className="map-error-message">{mapError}</div> : null}
       </div>
 
       {message ? <p className="toast-message">{message}</p> : null}
 
-      {selected ? (
+      {draftGeometry ? (
+        <aside className="map-drawer" aria-label="新しい配布区域の登録">
+          <button
+            className="icon-button drawer-close"
+            type="button"
+            onClick={() => setDraftGeometry(null)}
+            aria-label="閉じる"
+          >
+            <X size={22} />
+          </button>
+          <p className="eyebrow">管理者用</p>
+          <h2>新しい区域を登録</h2>
+          <div className="posting-area-form">
+            <label>
+              区域番号 <span>必須</span>
+              <input
+                value={areaCode}
+                maxLength={40}
+                placeholder="例：A-01"
+                onChange={(event) => setAreaCode(event.target.value)}
+              />
+            </label>
+            <label>
+              区域名 <span>必須</span>
+              <input
+                value={areaName}
+                maxLength={120}
+                placeholder="例：西福間1丁目 東側"
+                onChange={(event) => setAreaName(event.target.value)}
+              />
+            </label>
+            <label>
+              目標部数
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={1000000}
+                value={targetCount}
+                onChange={(event) => setTargetCount(event.target.value)}
+              />
+            </label>
+            <label>
+              メモ
+              <textarea
+                value={areaNote}
+                maxLength={300}
+                rows={3}
+                placeholder="目印や配布時の注意点など"
+                onChange={(event) => setAreaNote(event.target.value)}
+              />
+            </label>
+            <div className="assignment-actions">
+              <button
+                className="button button-primary"
+                type="button"
+                disabled={pending || !areaCode.trim() || !areaName.trim()}
+                onClick={saveArea}
+              >
+                {pending ? "登録中…" : "この区域を登録"}
+              </button>
+              <button
+                className="button button-secondary"
+                type="button"
+                disabled={pending}
+                onClick={() => setDraftGeometry(null)}
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </aside>
+      ) : selected ? (
         <aside className="map-drawer" aria-label="配布区域の詳細">
           <button
             className="icon-button drawer-close"

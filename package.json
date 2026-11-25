@@ -17,6 +17,7 @@
     "test:supabase": "tsx --env-file=.env.local --test tests/supabase/**/*.test.ts"
   },
   "dependencies": {
+    "@geoman-io/leaflet-geoman-free": "2.20.8",
     "@supabase/ssr": "0.6.1",
     "@supabase/supabase-js": "2.119.2",
     "leaflet": "1.9.4",

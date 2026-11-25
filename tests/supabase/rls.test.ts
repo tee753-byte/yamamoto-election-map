@@ -294,6 +294,86 @@ test("RLS・役割・競合防止・二重送信防止が機能する", async ()
   ]);
 });
 
+test("管理者だけが配布区域を作成・一括登録できる", async () => {
+  const suffix = crypto.randomUUID().slice(0, 8);
+  const geometry = {
+    type: "Polygon",
+    coordinates: [
+      [
+        [130.48, 33.76],
+        [130.481, 33.76],
+        [130.481, 33.761],
+        [130.48, 33.76],
+      ],
+    ],
+  };
+  const input = {
+    p_area_code: `TEST-${suffix}`,
+    p_name: "区域登録の統合テスト",
+    p_geometry: geometry,
+    p_target_count: 100,
+    p_note: "個人情報を含まないテスト",
+    p_request_id: crypto.randomUUID(),
+  };
+
+  const worker = await signIn("worker@yamamoto-map.local", "demo-worker-2026");
+  const workerCreate = await worker.rpc("create_posting_area", input);
+  assert.match(workerCreate.error?.message ?? "", /not authorized/);
+
+  const admin = await signIn("admin@yamamoto-map.local", "demo-admin-2026");
+  const invalidGeometry = await admin.rpc("create_posting_area", {
+    ...input,
+    p_area_code: `INVALID-${suffix}`,
+    p_geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [130.48, 33.76],
+          [130.481, 33.76],
+          [130.481, 33.761],
+        ],
+      ],
+    },
+    p_request_id: crypto.randomUUID(),
+  });
+  assert.match(invalidGeometry.error?.message ?? "", /invalid polygon/);
+
+  const adminCreate = await admin.rpc("create_posting_area", input);
+  assert.equal(adminCreate.error, null, "管理者は地図区域を登録できること");
+  const created = await admin
+    .from("posting_areas")
+    .select("area_code, name, target_count, is_sample")
+    .eq("id", adminCreate.data)
+    .single();
+  assert.equal(created.error, null);
+  assert.equal(created.data?.area_code, input.p_area_code);
+  assert.equal(created.data?.target_count, 100);
+  assert.equal(created.data?.is_sample, false);
+
+  const importRows = [1, 2].map((number) => ({
+    areaCode: `IMPORT-${suffix}-${number}`,
+    name: `一括登録テスト${number}`,
+    geometry,
+    targetCount: number * 50,
+    note: null,
+  }));
+  const imported = await admin.rpc("import_posting_areas", { p_areas: importRows });
+  assert.equal(imported.error, null, "GeoJSON由来の区域を一括登録できること");
+  assert.equal(imported.data, 2);
+
+  const importedRows = await admin
+    .from("posting_areas")
+    .select("area_code")
+    .in(
+      "area_code",
+      importRows.map((row) => row.areaCode),
+    );
+  assert.equal(importedRows.error, null);
+  assert.equal(importedRows.data?.length, 2);
+
+  await Promise.all([worker.auth.signOut(), admin.auth.signOut()]);
+});
+
 test("スケジュールのRLS・削除権限・同時更新・参加可能時間が機能する", async () => {
   const workerId = "a0000000-0000-0000-0000-000000000002";
   const adminId = "a0000000-0000-0000-0000-000000000001";

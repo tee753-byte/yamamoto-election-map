@@ -27,3 +27,10 @@
 - 福津市公式ページ: 福津市公式サイトの利用条件
 
 画面では出典、基準日、取得日、加工・集計上の注意を確認できます。
+
+## 地図上の区域編集
+
+ポスティング区域の描画には `@geoman-io/leaflet-geoman-free` を使用しています。
+
+- ライセンス: MIT License
+- 公式サイト: [Leaflet-Geoman](https://geoman.io/leaflet-geoman)
