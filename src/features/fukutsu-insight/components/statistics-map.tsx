@@ -11,7 +11,10 @@ import type {
   StatisticsData,
   TownStatistics,
 } from "@/features/fukutsu-insight/types/statistics";
-import { normalizeAreaName } from "@/features/fukutsu-insight/utils/area-name";
+import {
+  matchesBoundarySelection,
+  normalizeAreaName,
+} from "@/features/fukutsu-insight/utils/area-name";
 import { formatDate, formatNumber } from "@/features/fukutsu-insight/utils/format";
 import styles from "./insight.module.css";
 
@@ -208,11 +211,8 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
       if (disposed || requestId !== highlightRequestRef.current || !mapRef.current)
         return;
 
-      const selectedName = normalizeAreaName(selected.name);
-      const matchingFeatures = boundaries.features.filter(
-        (feature) =>
-          feature.properties.areaCode === selected.areaCode ||
-          normalizeAreaName(feature.properties.name) === selectedName,
+      const matchingFeatures = boundaries.features.filter((feature) =>
+        matchesBoundarySelection(feature.properties, selected, mode),
       );
       if (matchingFeatures.length === 0) return;
       const selectedBoundaries: FeatureCollection<Geometry, BoundaryProperties> = {
@@ -254,7 +254,7 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
       highlightLayerRef.current?.remove();
       highlightLayerRef.current = null;
     };
-  }, [boundaries, selected]);
+  }, [boundaries, mode, selected]);
 
   useEffect(
     () => () => {
