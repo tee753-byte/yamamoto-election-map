@@ -9,23 +9,18 @@ import type {
   CensusArea,
   CensusData,
   StatisticsData,
+  TownStatistics,
 } from "@/features/fukutsu-insight/types/statistics";
+import { normalizeAreaName } from "@/features/fukutsu-insight/utils/area-name";
 import { formatDate, formatNumber } from "@/features/fukutsu-insight/utils/format";
 import styles from "./insight.module.css";
 
-const COMMUNITY_AREAS = [
-  ["福間", 18224, 8324, 23.84],
-  ["福間南", 16442, 6856, 21.44],
-  ["上西郷", 2711, 1280, 37.88],
-  ["神興", 6483, 3294, 42.03],
-  ["神興東", 7519, 3273, 32],
-  ["勝浦", 1004, 507, 44.52],
-  ["津屋崎", 8736, 3944, 26.95],
-  ["宮司", 8675, 3976, 25.18],
-] as const;
-
-type ViewMode = "boundary" | "community";
+type ViewMode = "latest" | "census";
 type Indicator = "population" | "households" | "agingRate";
+type MapArea = Pick<
+  CensusArea | TownStatistics,
+  "code" | "name" | "population" | "households" | "agingRate"
+>;
 const COLORS = ["#f5e9eb", "#e8cdd2", "#d8a6af", "#b96675", "#862d39"];
 const INDICATORS: Record<
   Indicator,
@@ -36,11 +31,11 @@ const INDICATORS: Record<
   agingRate: { label: "高齢化率", unit: "%", thresholds: [20, 30, 40, 50] },
 };
 
-function getValue(area: CensusArea | undefined, indicator: Indicator) {
+function getValue(area: MapArea | undefined, indicator: Indicator) {
   return area?.[indicator] ?? null;
 }
 
-function getColor(area: CensusArea | undefined, indicator: Indicator) {
+function getColor(area: MapArea | undefined, indicator: Indicator) {
   const value = getValue(area, indicator);
   if (value === null) return "#d5d9dd";
   const index = INDICATORS[indicator].thresholds.findIndex(
@@ -49,7 +44,7 @@ function getColor(area: CensusArea | undefined, indicator: Indicator) {
   return COLORS[index === -1 ? COLORS.length - 1 : index];
 }
 
-function formatIndicatorValue(area: CensusArea, indicator: Indicator) {
+function formatIndicatorValue(area: MapArea, indicator: Indicator) {
   const value = getValue(area, indicator);
   if (value === null) return "データなし";
   if (indicator === "agingRate") return `${value.toFixed(2)}%`;
@@ -67,7 +62,7 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
   const [selected, setSelected] =
     useState<Pick<BoundaryProperties, "areaCode" | "name">>();
   const [query, setQuery] = useState("");
-  const [mode, setMode] = useState<ViewMode>("community");
+  const [mode, setMode] = useState<ViewMode>("latest");
   const [indicator, setIndicator] = useState<Indicator>("population");
 
   useEffect(() => {
@@ -100,27 +95,46 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
     () => new Map(census?.areas.map((area) => [area.code, area]) ?? []),
     [census],
   );
-  const selectedArea = selected ? censusByCode.get(selected.areaCode) : undefined;
-  const boundaryAreas = useMemo(() => {
+  const latestByName = useMemo(
+    () =>
+      new Map(
+        data.latestRegional.towns.map((area) => [normalizeAreaName(area.name), area]),
+      ),
+    [data.latestRegional.towns],
+  );
+  const censusBoundaryAreas = useMemo(() => {
     const boundaryCodes = new Set(
       boundaries?.features.map((feature) => feature.properties.areaCode) ?? [],
     );
     return census?.areas.filter((area) => boundaryCodes.has(area.code)) ?? [];
   }, [boundaries, census]);
-  const filteredAreas = useMemo(
-    () => boundaryAreas.filter((area) => area.name.includes(query.trim())).slice(0, 12),
-    [boundaryAreas, query],
-  );
+  const activeAreaByBoundaryCode = useMemo(() => {
+    const entries =
+      boundaries?.features.map((feature) => {
+        const area =
+          mode === "latest"
+            ? latestByName.get(normalizeAreaName(feature.properties.name))
+            : censusByCode.get(feature.properties.areaCode);
+        return [feature.properties.areaCode, area] as const;
+      }) ?? [];
+    return new Map(entries);
+  }, [boundaries, censusByCode, latestByName, mode]);
+  const activeAreas: MapArea[] =
+    mode === "latest" ? data.latestRegional.towns : censusBoundaryAreas;
+  const selectedArea = selected
+    ? mode === "latest"
+      ? latestByName.get(normalizeAreaName(selected.name))
+      : censusByCode.get(selected.areaCode)
+    : undefined;
+  const filteredAreas = useMemo(() => {
+    const normalizedQuery = normalizeAreaName(query);
+    return activeAreas
+      .filter((area) => normalizeAreaName(area.name).includes(normalizedQuery))
+      .slice(0, 12);
+  }, [activeAreas, query]);
 
   useEffect(() => {
-    if (mode === "boundary") return;
-    mapRef.current?.remove();
-    mapRef.current = null;
-    layerRef.current = null;
-  }, [mode]);
-
-  useEffect(() => {
-    if (mode !== "boundary" || !containerRef.current || !boundaries || !census) return;
+    if (!containerRef.current || !boundaries || !census) return;
     let disposed = false;
 
     async function draw() {
@@ -148,16 +162,18 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
             color: "#64202b",
             weight: 1,
             fillColor: getColor(
-              feature ? censusByCode.get(feature.properties.areaCode) : undefined,
+              feature
+                ? activeAreaByBoundaryCode.get(feature.properties.areaCode)
+                : undefined,
               indicator,
             ),
             fillOpacity: 0.72,
           }),
           onEachFeature: (feature, featureLayer) => {
             const properties = feature.properties as BoundaryProperties;
-            const censusArea = censusByCode.get(properties.areaCode);
+            const area = activeAreaByBoundaryCode.get(properties.areaCode);
             featureLayer.bindTooltip(
-              `${properties.name}｜${config.label} ${censusArea ? formatIndicatorValue(censusArea, indicator) : "データなし"}`,
+              `${properties.name}｜${config.label} ${area ? formatIndicatorValue(area, indicator) : "データなし"}`,
               { sticky: true },
             );
             featureLayer.on("click", () => setSelected(properties));
@@ -173,7 +189,7 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
     return () => {
       disposed = true;
     };
-  }, [boundaries, census, censusByCode, indicator, mode]);
+  }, [activeAreaByBoundaryCode, boundaries, census, indicator]);
 
   useEffect(
     () => () => {
@@ -195,199 +211,177 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
         </div>
         <div className={styles.segmented}>
           <button
-            className={mode === "community" ? styles.selected : ""}
+            className={mode === "latest" ? styles.selected : ""}
             type="button"
-            onClick={() => setMode("community")}
+            onClick={() => {
+              setMode("latest");
+              setSelected(undefined);
+            }}
           >
-            最新・郷づくり
+            最新統計
           </button>
           <button
-            className={mode === "boundary" ? styles.selected : ""}
+            className={mode === "census" ? styles.selected : ""}
             type="button"
-            onClick={() => setMode("boundary")}
+            onClick={() => {
+              setMode("census");
+              setSelected(undefined);
+            }}
           >
-            参考・2020年地図
+            2020年国勢調査
           </button>
         </div>
       </div>
       <div className={styles.notice}>
         <Info size={18} aria-hidden />
         <span>
-          {mode === "community" ? (
+          {mode === "latest" ? (
             <>
               <strong>福津市公式の最新値です。</strong>{" "}
-              2026年10月末の住民基本台帳を表示します。
+              2026年11月1日の町丁目別住民基本台帳を、2020年国勢調査の境界に名称で対応させています。
             </>
           ) : (
             <>
-              <strong>地図の数値は2020年国勢調査です。</strong>{" "}
-              最新統計と境界区画が一致しないため分けています。
+              <strong>地図と数値は2020年国勢調査です。</strong>{" "}
+              当時の状態を確認する参考表示です。
             </>
           )}
         </span>
       </div>
 
-      {mode === "community" ? (
-        <section className={styles.panel}>
-          <div className={styles.panelHeader}>
-            <div>
-              <h3>郷づくり8地域</h3>
-              <p>2026年10月末・福津市公式住民基本台帳</p>
-            </div>
-            <span className={styles.tag}>最新データ</span>
+      <div className={styles.toolbar}>
+        <div className={styles.segmented}>
+          {(["population", "households", "agingRate"] as Indicator[]).map((key) => (
+            <button
+              className={indicator === key ? styles.selected : ""}
+              key={key}
+              type="button"
+              onClick={() => setIndicator(key)}
+            >
+              {INDICATORS[key].label}
+            </button>
+          ))}
+        </div>
+        <span>
+          基準日：
+          {formatDate(
+            mode === "latest"
+              ? data.latestRegional.date
+              : (census?.referenceDate ?? "2020-10-01"),
+          )}
+        </span>
+      </div>
+      <div className={styles.mapLayout}>
+        <section className={styles.mapPanel}>
+          {error ? <p className={styles.error}>{error}</p> : null}
+          {!boundaries || !census ? (
+            <p className={styles.loading}>地図データを読み込んでいます…</p>
+          ) : null}
+          <section
+            ref={containerRef}
+            className={styles.leafletMap}
+            aria-label={`福津市の${mode === "latest" ? "最新統計" : "国勢調査"}地図`}
+          />
+          <div className={styles.mapCaption}>
+            <Layers3 size={15} />
+            境界：令和2年国勢調査 町丁・字等（109形状）
           </div>
-          <div className={styles.tableWrap}>
-            <table>
-              <thead>
-                <tr>
-                  <th>地域</th>
-                  <th>人口</th>
-                  <th>世帯数</th>
-                  <th>高齢化率</th>
-                </tr>
-              </thead>
-              <tbody>
-                {COMMUNITY_AREAS.map(([name, population, households, agingRate]) => (
-                  <tr key={name}>
-                    <th>{name}</th>
-                    <td>{formatNumber(population)}人</td>
-                    <td>{formatNumber(households)}世帯</td>
-                    <td>{agingRate.toFixed(2)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className={styles.sourceNote}>
-            郷づくり地域の正確なGIS境界を確認できていないため、推測の地図を作らず一覧で表示しています。
-          </p>
-        </section>
-      ) : (
-        <>
-          <div className={styles.toolbar}>
-            <div className={styles.segmented}>
-              {(["population", "households", "agingRate"] as Indicator[]).map((key) => (
-                <button
-                  className={indicator === key ? styles.selected : ""}
-                  key={key}
-                  type="button"
-                  onClick={() => setIndicator(key)}
-                >
-                  {INDICATORS[key].label}
-                </button>
-              ))}
-            </div>
-            <span>基準日：2020年10月1日</span>
-          </div>
-          <div className={styles.mapLayout}>
-            <section className={styles.mapPanel}>
-              {error ? <p className={styles.error}>{error}</p> : null}
-              {!boundaries || !census ? (
-                <p className={styles.loading}>地図データを読み込んでいます…</p>
-              ) : null}
-              <section
-                ref={containerRef}
-                className={styles.leafletMap}
-                aria-label="福津市の国勢調査小地域地図"
-              />
-              <div className={styles.mapCaption}>
-                <Layers3 size={15} />
-                令和2年国勢調査 町丁・字等境界（109形状）
-              </div>
-              <fieldset className={styles.mapLegend}>
-                <legend>{config.label}</legend>
-                {COLORS.map((color, index) => {
-                  const lower = index === 0 ? 0 : config.thresholds[index - 1];
-                  const upper = config.thresholds[index];
-                  return (
-                    <span key={color}>
-                      <i style={{ background: color }} />
-                      {upper
-                        ? `${lower}〜${upper - (indicator === "agingRate" ? 0.01 : 1)}${config.unit}`
-                        : `${lower}${config.unit}以上`}
-                    </span>
-                  );
-                })}
-                <span>
-                  <i style={{ background: "#d5d9dd" }} />
-                  データなし
+          <fieldset className={styles.mapLegend}>
+            <legend>{config.label}</legend>
+            {COLORS.map((color, index) => {
+              const lower = index === 0 ? 0 : config.thresholds[index - 1];
+              const upper = config.thresholds[index];
+              return (
+                <span key={color}>
+                  <i style={{ background: color }} />
+                  {upper
+                    ? `${lower}〜${upper - (indicator === "agingRate" ? 0.01 : 1)}${config.unit}`
+                    : `${lower}${config.unit}以上`}
                 </span>
-              </fieldset>
-            </section>
-            <aside className={styles.panel}>
-              <h3>{selected?.name ?? "地域を選択"}</h3>
-              {selected ? (
-                <>
-                  <dl className={styles.detailList}>
-                    <div>
-                      <dt>国勢調査地域コード</dt>
-                      <dd>{selected.areaCode}</dd>
-                    </div>
-                    <div>
-                      <dt>人口</dt>
-                      <dd>
-                        {selectedArea?.population == null
-                          ? "データなし"
-                          : `${formatNumber(selectedArea.population)}人`}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>世帯数</dt>
-                      <dd>
-                        {selectedArea?.households == null
-                          ? "データなし"
-                          : `${formatNumber(selectedArea.households)}世帯`}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>高齢化率</dt>
-                      <dd>
-                        {selectedArea?.agingRate == null
-                          ? "データなし"
-                          : `${selectedArea.agingRate.toFixed(2)}%`}
-                      </dd>
-                    </div>
-                  </dl>
-                  <p className={styles.sourceNote}>
-                    上の値は境界と同じ2020年国勢調査です。
-                  </p>
-                </>
-              ) : (
-                <p className={styles.sourceNote}>
-                  地図上の地域をタップすると統計値を表示します。
-                </p>
-              )}
-              <div className={styles.searchBox}>
-                <Search size={17} />
-                <input
-                  aria-label="2020年国勢調査を地域名で検索"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="地域名で検索"
-                />
-              </div>
-              <p className={styles.searchResultLabel}>2020年国勢調査・{config.label}</p>
-              <div className={styles.compactList}>
-                {(query ? filteredAreas : boundaryAreas.slice(0, 8)).map((area) => (
-                  <button
-                    key={area.code}
-                    type="button"
-                    onClick={() =>
-                      setSelected({ areaCode: area.code, name: area.name })
-                    }
-                  >
-                    <span>{area.name}</span>
-                    <strong>{formatIndicatorValue(area, indicator)}</strong>
-                  </button>
-                ))}
-              </div>
-            </aside>
+              );
+            })}
+            <span>
+              <i style={{ background: "#d5d9dd" }} />
+              データなし
+            </span>
+          </fieldset>
+        </section>
+        <aside className={styles.panel}>
+          <h3>{selected?.name ?? "地域を選択"}</h3>
+          {selected ? (
+            <>
+              <dl className={styles.detailList}>
+                <div>
+                  <dt>
+                    {mode === "latest" ? "最新統計地域コード" : "国勢調査地域コード"}
+                  </dt>
+                  <dd>{selectedArea?.code ?? selected.areaCode}</dd>
+                </div>
+                <div>
+                  <dt>人口</dt>
+                  <dd>
+                    {selectedArea?.population == null
+                      ? "データなし"
+                      : `${formatNumber(selectedArea.population)}人`}
+                  </dd>
+                </div>
+                <div>
+                  <dt>世帯数</dt>
+                  <dd>
+                    {selectedArea?.households == null
+                      ? "データなし"
+                      : `${formatNumber(selectedArea.households)}世帯`}
+                  </dd>
+                </div>
+                <div>
+                  <dt>高齢化率</dt>
+                  <dd>
+                    {selectedArea?.agingRate == null
+                      ? "データなし"
+                      : `${selectedArea.agingRate.toFixed(2)}%`}
+                  </dd>
+                </div>
+              </dl>
+              <p className={styles.sourceNote}>
+                {mode === "latest"
+                  ? "数値は最新の住民基本台帳、区画線は2020年国勢調査の境界です。"
+                  : "数値と区画線は2020年国勢調査です。"}
+              </p>
+            </>
+          ) : (
+            <p className={styles.sourceNote}>
+              地図上の地域をタップすると統計値を表示します。
+            </p>
+          )}
+          <div className={styles.searchBox}>
+            <Search size={17} />
+            <input
+              aria-label={`${mode === "latest" ? "最新統計" : "2020年国勢調査"}を地域名で検索`}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="地域名で検索"
+            />
           </div>
-        </>
-      )}
+          <p className={styles.searchResultLabel}>
+            {mode === "latest" ? "最新統計" : "2020年国勢調査"}・{config.label}
+          </p>
+          <div className={styles.compactList}>
+            {(query ? filteredAreas : activeAreas.slice(0, 8)).map((area) => (
+              <button
+                key={area.code}
+                type="button"
+                onClick={() => setSelected({ areaCode: area.code, name: area.name })}
+              >
+                <span>{area.name}</span>
+                <strong>{formatIndicatorValue(area, indicator)}</strong>
+              </button>
+            ))}
+          </div>
+        </aside>
+      </div>
       <p className={styles.dataDate}>
-        {mode === "community"
-          ? `最新地域別統計の基準日：${formatDate(data.latestRegional.date)}`
+        {mode === "latest"
+          ? `数値の基準日：${formatDate(data.latestRegional.date)}（住民基本台帳）／境界の基準日：2020/10/01（国勢調査）`
           : `地図・検索結果の基準日：${formatDate(census?.referenceDate ?? "2020-10-01")}（国勢調査）`}
       </p>
     </div>

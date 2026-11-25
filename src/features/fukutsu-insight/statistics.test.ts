@@ -3,6 +3,7 @@ import test from "node:test";
 import boundaries from "@/features/fukutsu-insight/data/boundaries.json";
 import census from "@/features/fukutsu-insight/data/census-2020.json";
 import statistics from "@/features/fukutsu-insight/data/statistics.json";
+import { normalizeAreaName } from "@/features/fukutsu-insight/utils/area-name";
 
 test("福津インサイトの公開統計データが統合されている", () => {
   assert.equal(statistics.dataKind, "実データ");
@@ -33,4 +34,18 @@ test("2020年地図の境界と検索用国勢調査データを地域コード�
     "東福間五丁目は地図と検索結果で同じ2020年人口を使う",
   );
   assert.equal(censusByCode.get("008005")?.households, 151);
+});
+
+test("最新町丁目統計を2020年の地図境界へ名称で対応できる", () => {
+  const latestByName = new Map(
+    statistics.latestRegional.towns.map((area) => [normalizeAreaName(area.name), area]),
+  );
+  const matchedFeatures = boundaries.features.filter((feature) =>
+    latestByName.has(normalizeAreaName(feature.properties.name)),
+  );
+  const eastFukuma5 = latestByName.get(normalizeAreaName("東福間五丁目"));
+
+  assert.ok(matchedFeatures.length >= 100, "最新統計を100以上の境界形状へ対応できる");
+  assert.equal(eastFukuma5?.population, 334);
+  assert.equal(eastFukuma5?.households, 159);
 });
