@@ -49,6 +49,13 @@ function getColor(area: CensusArea | undefined, indicator: Indicator) {
   return COLORS[index === -1 ? COLORS.length - 1 : index];
 }
 
+function formatIndicatorValue(area: CensusArea, indicator: Indicator) {
+  const value = getValue(area, indicator);
+  if (value === null) return "データなし";
+  if (indicator === "agingRate") return `${value.toFixed(2)}%`;
+  return `${formatNumber(value)}${INDICATORS[indicator].unit}`;
+}
+
 export function StatisticsMap({ data }: { data: StatisticsData }) {
   const containerRef = useRef<HTMLElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -57,7 +64,8 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
     useState<FeatureCollection<Geometry, BoundaryProperties>>();
   const [census, setCensus] = useState<CensusData>();
   const [error, setError] = useState("");
-  const [selected, setSelected] = useState<BoundaryProperties>();
+  const [selected, setSelected] =
+    useState<Pick<BoundaryProperties, "areaCode" | "name">>();
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<ViewMode>("community");
   const [indicator, setIndicator] = useState<Indicator>("population");
@@ -93,12 +101,15 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
     [census],
   );
   const selectedArea = selected ? censusByCode.get(selected.areaCode) : undefined;
-  const filteredTowns = useMemo(
-    () =>
-      data.latestRegional.towns
-        .filter((town) => town.name.includes(query.trim()))
-        .slice(0, 12),
-    [data.latestRegional.towns, query],
+  const boundaryAreas = useMemo(() => {
+    const boundaryCodes = new Set(
+      boundaries?.features.map((feature) => feature.properties.areaCode) ?? [],
+    );
+    return census?.areas.filter((area) => boundaryCodes.has(area.code)) ?? [];
+  }, [boundaries, census]);
+  const filteredAreas = useMemo(
+    () => boundaryAreas.filter((area) => area.name.includes(query.trim())).slice(0, 12),
+    [boundaryAreas, query],
   );
 
   useEffect(() => {
@@ -144,9 +155,9 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
           }),
           onEachFeature: (feature, featureLayer) => {
             const properties = feature.properties as BoundaryProperties;
-            const value = getValue(censusByCode.get(properties.areaCode), indicator);
+            const censusArea = censusByCode.get(properties.areaCode);
             featureLayer.bindTooltip(
-              `${properties.name}｜${config.label} ${value === null ? "データなし" : `${formatNumber(value)}${config.unit}`}`,
+              `${properties.name}｜${config.label} ${censusArea ? formatIndicatorValue(censusArea, indicator) : "データなし"}`,
               { sticky: true },
             );
             featureLayer.on("click", () => setSelected(properties));
@@ -349,28 +360,35 @@ export function StatisticsMap({ data }: { data: StatisticsData }) {
               <div className={styles.searchBox}>
                 <Search size={17} />
                 <input
-                  aria-label="最新統計を地域名で検索"
+                  aria-label="2020年国勢調査を地域名で検索"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="最新統計を地域名で検索"
+                  placeholder="地域名で検索"
                 />
               </div>
+              <p className={styles.searchResultLabel}>2020年国勢調査・{config.label}</p>
               <div className={styles.compactList}>
-                {(query ? filteredTowns : data.latestRegional.towns.slice(0, 8)).map(
-                  (town) => (
-                    <div key={town.code}>
-                      <span>{town.name}</span>
-                      <strong>{formatNumber(town.population)}人</strong>
-                    </div>
-                  ),
-                )}
+                {(query ? filteredAreas : boundaryAreas.slice(0, 8)).map((area) => (
+                  <button
+                    key={area.code}
+                    type="button"
+                    onClick={() =>
+                      setSelected({ areaCode: area.code, name: area.name })
+                    }
+                  >
+                    <span>{area.name}</span>
+                    <strong>{formatIndicatorValue(area, indicator)}</strong>
+                  </button>
+                ))}
               </div>
             </aside>
           </div>
         </>
       )}
       <p className={styles.dataDate}>
-        最新地域別統計の基準日：{formatDate(data.latestRegional.date)}
+        {mode === "community"
+          ? `最新地域別統計の基準日：${formatDate(data.latestRegional.date)}`
+          : `地図・検索結果の基準日：${formatDate(census?.referenceDate ?? "2020-10-01")}（国勢調査）`}
       </p>
     </div>
   );
