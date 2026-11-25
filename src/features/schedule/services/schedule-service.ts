@@ -9,6 +9,7 @@ import type {
   ScheduleProfile,
 } from "@/features/schedule/types/schedule";
 import { todayInTokyo } from "@/features/schedule/utils/date";
+import { sortScheduleProfiles } from "@/features/schedule/utils/members";
 import { createClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/lib/types/domain";
 
@@ -152,11 +153,13 @@ export async function listScheduleProfiles(): Promise<ScheduleProfile[]> {
     .order("display_name");
 
   if (error) throw new Error(`メンバーの取得に失敗しました: ${error.message}`);
-  return ((data ?? []) as ProfileRow[]).map((row) => ({
-    id: row.id,
-    displayName: row.display_name,
-    role: row.role,
-  }));
+  return sortScheduleProfiles(
+    ((data ?? []) as ProfileRow[]).map((row) => ({
+      id: row.id,
+      displayName: row.display_name,
+      role: row.role,
+    })),
+  );
 }
 
 function eventRpcParams(input: ScheduleEventInput) {

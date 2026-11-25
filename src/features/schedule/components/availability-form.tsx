@@ -9,6 +9,7 @@ import type {
   ScheduleAvailability,
   ScheduleProfile,
 } from "@/features/schedule/types/schedule";
+import { scheduleMemberLabel } from "@/features/schedule/utils/members";
 import styles from "./schedule.module.css";
 
 interface AvailabilityFormProps {
@@ -128,7 +129,7 @@ export function AvailabilityForm({
               >
                 {profiles.map((profile) => (
                   <option key={profile.id} value={profile.id}>
-                    {profile.displayName}
+                    {scheduleMemberLabel(profile.displayName)}
                   </option>
                 ))}
               </select>
