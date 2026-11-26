@@ -1,14 +1,16 @@
 "use client";
 
 import type L from "leaflet";
-import { LocateFixed, MapPinPlus, Pencil, Trash2, X } from "lucide-react";
+import { LocateFixed, MapPinPlus, Pencil, Trash2, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   archivePostingAreaAction,
   assignPostingAreaAction,
   createPostingAreaAction,
+  importPostingAreasAction,
   recordPostingProgressAction,
+  updatePostingAreaAction,
 } from "@/features/posting-map/actions/posting-actions";
 import { STATUS_CONFIG } from "@/features/shared/constants/status-config";
 import {
@@ -28,12 +30,20 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
   const containerRef = useRef<HTMLElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  const areaLayersRef = useRef(new Map<string, L.Polygon>());
+  const geometryEditingLayerRef = useRef<L.Polygon | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   const locationLayerRef = useRef<L.LayerGroup | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState("");
   const [selected, setSelected] = useState<PostingArea | null>(null);
   const [assignmentLabel, setAssignmentLabel] = useState("");
   const [editingAssignment, setEditingAssignment] = useState(false);
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [editingGeometry, setEditingGeometry] = useState(false);
+  const [editAreaName, setEditAreaName] = useState("");
+  const [editTargetCount, setEditTargetCount] = useState("");
+  const [editAreaNote, setEditAreaNote] = useState("");
   const [deliveredIncrement, setDeliveredIncrement] = useState(0);
   const [filter, setFilter] = useState<WorkStatus | "all">("all");
   const [drawing, setDrawing] = useState(false);
@@ -121,6 +131,8 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
       mapRef.current?.remove();
       mapRef.current = null;
       layerRef.current = null;
+      areaLayersRef.current.clear();
+      geometryEditingLayerRef.current = null;
       locationLayerRef.current = null;
       setMapReady(false);
     };
@@ -134,11 +146,14 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
       if (!layer) return;
       const leaflet = (await import("leaflet")).default;
       layer.clearLayers();
+      areaLayersRef.current.clear();
 
       for (const area of visibleAreas) {
         const status = STATUS_CONFIG[area.status];
-        const latLngs = area.geometry.coordinates[0].map(
-          ([longitude, latitude]) => [latitude, longitude] as [number, number],
+        const latLngs = area.geometry.coordinates.map((ring) =>
+          ring.map(
+            ([longitude, latitude]) => [latitude, longitude] as [number, number],
+          ),
         );
         const polygon = leaflet
           .polygon(latLngs, {
@@ -151,13 +166,21 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
             `${area.areaCode} ${area.name}<br>${status.label} / ${area.deliveredCount}部`,
           )
           .on("click", () => {
+            if (geometryEditingLayerRef.current) return;
             setMessage("");
             setDeliveredIncrement(0);
             setAssignmentLabel(area.assigneeLabel ?? area.assignee?.displayName ?? "");
             setEditingAssignment(false);
+            setEditingDetails(false);
+            setEditAreaName(area.name);
+            setEditTargetCount(
+              area.targetCount === null ? "" : String(area.targetCount),
+            );
+            setEditAreaNote(area.note ?? "");
             setSelected(area);
           });
         layer.addLayer(polygon);
+        areaLayersRef.current.set(area.id, polygon);
       }
     }
     void redraw();
@@ -192,6 +215,102 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
       setMessage(result.message);
       if (result.ok) setSelected(null);
     });
+  }
+
+  function saveAreaDetails() {
+    if (!selected) return;
+    setMessage("");
+    startTransition(async () => {
+      const result = await updatePostingAreaAction({
+        areaId: selected.id,
+        expectedVersion: selected.version,
+        name: editAreaName,
+        geometry: selected.geometry,
+        targetCount: editTargetCount === "" ? null : Number(editTargetCount),
+        note: editAreaNote || null,
+      });
+      setMessage(result.message);
+      if (!result.ok) return;
+      setEditingDetails(false);
+      setSelected(null);
+      router.refresh();
+    });
+  }
+
+  function startGeometryEditing() {
+    if (!selected) return;
+    const polygon = areaLayersRef.current.get(selected.id);
+    const map = mapRef.current;
+    if (!polygon || !map) {
+      setMessage("区域の境界を読み込めませんでした。画面を再読み込みしてください。");
+      return;
+    }
+
+    setMessage("");
+    setEditingAssignment(false);
+    setEditingDetails(false);
+    geometryEditingLayerRef.current = polygon;
+    setEditingGeometry(true);
+    polygon.bringToFront();
+    polygon.pm.enable({
+      snappable: true,
+      snapDistance: 20,
+      allowSelfIntersection: false,
+    });
+    map.fitBounds(polygon.getBounds(), { padding: [40, 40], maxZoom: 16 });
+  }
+
+  function cancelGeometryEditing() {
+    if (!selected) return;
+    const polygon = geometryEditingLayerRef.current;
+    polygon?.pm.disable();
+    polygon?.setLatLngs(
+      selected.geometry.coordinates.map((ring) =>
+        ring.map(([longitude, latitude]) => [latitude, longitude] as [number, number]),
+      ),
+    );
+    geometryEditingLayerRef.current = null;
+    setEditingGeometry(false);
+    setMessage("");
+  }
+
+  function saveGeometry() {
+    if (!selected || !geometryEditingLayerRef.current) return;
+    const feature = geometryEditingLayerRef.current.toGeoJSON();
+    if (feature.geometry.type !== "Polygon") {
+      setMessage("区域の形を読み取れませんでした。編集をやり直してください。");
+      return;
+    }
+
+    const geometry = {
+      type: "Polygon" as const,
+      coordinates: feature.geometry.coordinates,
+    };
+    setMessage("");
+    startTransition(async () => {
+      const result = await updatePostingAreaAction({
+        areaId: selected.id,
+        expectedVersion: selected.version,
+        name: selected.name,
+        geometry,
+        targetCount: selected.targetCount,
+        note: selected.note,
+      });
+      setMessage(result.message);
+      if (!result.ok) return;
+      geometryEditingLayerRef.current?.pm.disable();
+      geometryEditingLayerRef.current = null;
+      setEditingGeometry(false);
+      setSelected(null);
+      router.refresh();
+    });
+  }
+
+  function closeSelectedArea() {
+    if (editingGeometry) cancelGeometryEditing();
+    setSelected(null);
+    setEditingAssignment(false);
+    setEditingDetails(false);
   }
 
   function archiveSelectedArea() {
@@ -258,6 +377,46 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
     });
   }
 
+  async function importAreaFile(file: File) {
+    setMessage("");
+    try {
+      const parsed = JSON.parse(await file.text()) as {
+        type?: unknown;
+        features?: unknown;
+      };
+      if (parsed.type !== "FeatureCollection" || !Array.isArray(parsed.features)) {
+        setMessage("区域ファイルの形式を確認してください。");
+        return;
+      }
+
+      const rows = parsed.features.map((value) => {
+        const feature = value as {
+          properties?: Record<string, unknown>;
+          geometry?: unknown;
+        };
+        const properties = feature.properties ?? {};
+        return {
+          areaCode: properties.areaCode,
+          name: properties.name,
+          geometry: feature.geometry,
+          targetCount: properties.targetCount ?? null,
+          note: properties.note ?? null,
+          assigneeLabel: properties.assigneeLabel,
+        };
+      });
+
+      startTransition(async () => {
+        const result = await importPostingAreasAction(rows);
+        setMessage(result.message);
+        if (result.ok) router.refresh();
+      });
+    } catch {
+      setMessage("区域ファイルを読み取れませんでした。JSON形式をご確認ください。");
+    } finally {
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
+  }
+
   async function showCurrentLocation() {
     if (!navigator.geolocation) {
       setMessage("この端末では現在地を取得できません。");
@@ -307,6 +466,7 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
         <legend className="visually-hidden">配布状況の絞り込み</legend>
         <button
           className={filter === "all" ? "filter-chip active" : "filter-chip"}
+          disabled={editingGeometry}
           onClick={() => setFilter("all")}
           type="button"
         >
@@ -315,6 +475,7 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
         {WORK_STATUS_ORDER.map((status) => (
           <button
             className={filter === status ? "filter-chip active" : "filter-chip"}
+            disabled={editingGeometry}
             key={status}
             onClick={() => setFilter(status)}
             type="button"
@@ -341,17 +502,40 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
             <button
               className="button button-primary"
               type="button"
-              disabled={!mapReady}
+              disabled={!mapReady || editingGeometry}
               onClick={startDrawing}
             >
               <MapPinPlus size={18} aria-hidden /> 区域を追加
             </button>
           )
         ) : null}
+        {currentUserRole === "admin" ? (
+          <>
+            <input
+              ref={importInputRef}
+              className="visually-hidden"
+              type="file"
+              accept=".geojson,.json,application/geo+json,application/json"
+              disabled={pending || editingGeometry}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void importAreaFile(file);
+              }}
+            />
+            <button
+              className="button button-secondary"
+              type="button"
+              disabled={!mapReady || pending || editingGeometry}
+              onClick={() => importInputRef.current?.click()}
+            >
+              <Upload size={18} aria-hidden /> 区域ファイル取込
+            </button>
+          </>
+        ) : null}
         <button
           className="button button-secondary"
           type="button"
-          disabled={!mapReady}
+          disabled={!mapReady || editingGeometry}
           onClick={showCurrentLocation}
         >
           <LocateFixed size={18} aria-hidden /> 現在地
@@ -448,13 +632,91 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
           <button
             className="icon-button drawer-close"
             type="button"
-            onClick={() => setSelected(null)}
+            onClick={closeSelectedArea}
             aria-label="閉じる"
           >
             <X size={22} />
           </button>
           <p className="eyebrow">区域番号 {selected.areaCode}</p>
           <h2>{selected.name}</h2>
+          {editingGeometry ? (
+            <div className="geometry-edit-panel">
+              <strong>境界線を編集中</strong>
+              <p>地図上の白い点を動かして、道路や町界に合わせてください。</p>
+              <div className="assignment-actions">
+                <button
+                  className="button button-primary"
+                  type="button"
+                  disabled={pending}
+                  onClick={saveGeometry}
+                >
+                  {pending ? "保存中…" : "境界を保存"}
+                </button>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  disabled={pending}
+                  onClick={cancelGeometryEditing}
+                >
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {currentUserRole === "admin" && editingDetails ? (
+            <div className="posting-area-form area-details-form">
+              <label>
+                区域名 <span>必須</span>
+                <input
+                  value={editAreaName}
+                  maxLength={120}
+                  disabled={pending}
+                  onChange={(event) => setEditAreaName(event.target.value)}
+                />
+              </label>
+              <label>
+                目標部数
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={1000000}
+                  value={editTargetCount}
+                  disabled={pending}
+                  onChange={(event) => setEditTargetCount(event.target.value)}
+                />
+              </label>
+              <label>
+                メモ
+                <textarea
+                  value={editAreaNote}
+                  maxLength={300}
+                  rows={3}
+                  disabled={pending}
+                  placeholder="目印や配布時の注意点など"
+                  onChange={(event) => setEditAreaNote(event.target.value)}
+                />
+              </label>
+              <div className="assignment-actions">
+                <button
+                  className="button button-primary"
+                  type="button"
+                  disabled={pending || !editAreaName.trim()}
+                  onClick={saveAreaDetails}
+                >
+                  {pending ? "保存中…" : "区域情報を保存"}
+                </button>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setEditingDetails(false)}
+                >
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          ) : null}
           <dl className="detail-list">
             <div>
               <dt>現在の状態</dt>
@@ -474,7 +736,9 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
                       placeholder="例：藤井、北川・藤井、A班"
                       onChange={(event) => setAssignmentLabel(event.target.value)}
                     />
-                    <small>空欄で保存すると未割当に戻ります。</small>
+                    <small>
+                      担当を設定しても状態は変わりません。空欄で保存すると未割当に戻ります。
+                    </small>
                     <div className="assignment-actions">
                       <button
                         className="button button-primary"
@@ -512,6 +776,7 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
                       <button
                         className="assignment-edit-button"
                         type="button"
+                        disabled={editingGeometry || editingDetails}
                         onClick={() => setEditingAssignment(true)}
                       >
                         <Pencil size={15} aria-hidden /> 編集
@@ -528,6 +793,10 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
             <div>
               <dt>目標</dt>
               <dd>{selected.targetCount ? `${selected.targetCount}部` : "未設定"}</dd>
+            </div>
+            <div>
+              <dt>メモ</dt>
+              <dd>{selected.note ?? "なし"}</dd>
             </div>
           </dl>
           {currentUserRole === "viewer" ? (
@@ -552,7 +821,7 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
                   <button
                     type="button"
                     key={status}
-                    disabled={pending}
+                    disabled={pending || editingGeometry || editingDetails}
                     onClick={() => update(status)}
                     style={{ borderColor: STATUS_CONFIG[status].color }}
                   >
@@ -562,11 +831,32 @@ export function PostingMap({ areas, currentUserRole }: PostingMapProps) {
               </div>
               {currentUserRole === "admin" ? (
                 <div className="area-delete-section">
+                  <div className="area-edit-actions">
+                    <button
+                      className="button button-secondary"
+                      type="button"
+                      disabled={pending || editingGeometry || editingDetails}
+                      onClick={() => {
+                        setEditingAssignment(false);
+                        setEditingDetails(true);
+                      }}
+                    >
+                      <Pencil size={17} aria-hidden /> 区域情報を編集
+                    </button>
+                    <button
+                      className="button button-secondary"
+                      type="button"
+                      disabled={pending || editingGeometry || editingDetails}
+                      onClick={startGeometryEditing}
+                    >
+                      <Pencil size={17} aria-hidden /> 境界線を編集
+                    </button>
+                  </div>
                   <p>削除すると、この区域は地図と進捗集計から非表示になります。</p>
                   <button
                     className="button button-danger"
                     type="button"
-                    disabled={pending}
+                    disabled={pending || editingGeometry || editingDetails}
                     onClick={archiveSelectedArea}
                   >
                     <Trash2 size={17} aria-hidden /> 区域を削除

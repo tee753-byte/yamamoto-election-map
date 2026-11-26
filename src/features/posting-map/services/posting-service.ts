@@ -89,10 +89,20 @@ interface CreatePostingAreaInput {
   currentUserRole: UserRole;
 }
 
+interface UpdatePostingAreaInput {
+  areaId: string;
+  expectedVersion: number;
+  name: string;
+  geometry: GeoJsonPolygon;
+  targetCount: number | null;
+  note: string | null;
+  currentUserRole: UserRole;
+}
+
 export type PostingAreaImportInput = Omit<
   CreatePostingAreaInput,
   "requestId" | "currentUserRole"
->;
+> & { assigneeLabel?: string };
 
 export async function createPostingArea(
   supabase: SupabaseClient,
@@ -125,6 +135,36 @@ export async function createPostingArea(
   }
 
   return { ok: true, message: "配布区域を登録しました。" };
+}
+
+export async function updatePostingArea(
+  supabase: SupabaseClient,
+  input: UpdatePostingAreaInput,
+) {
+  if (input.currentUserRole !== "admin") {
+    return { ok: false, message: "区域を編集できるのは管理者だけです。" };
+  }
+
+  const { error } = await supabase.rpc("update_posting_area", {
+    p_area_id: input.areaId,
+    p_expected_version: input.expectedVersion,
+    p_name: input.name,
+    p_geometry: input.geometry,
+    p_target_count: input.targetCount,
+    p_note: input.note,
+  });
+
+  if (error) {
+    const conflict = error.message.includes("conflict");
+    return {
+      ok: false,
+      message: conflict
+        ? "別の人が先に更新しました。画面を再読み込みしてください。"
+        : `区域を編集できませんでした: ${error.message}`,
+    };
+  }
+
+  return { ok: true, message: "区域情報を更新しました。" };
 }
 
 export async function importPostingAreas(

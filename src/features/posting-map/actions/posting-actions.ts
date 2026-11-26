@@ -9,6 +9,7 @@ import {
   createPostingArea,
   importPostingAreas,
   recordPostingProgress,
+  updatePostingArea,
 } from "@/features/posting-map/services/posting-service";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionState } from "@/lib/types/action-state";
@@ -64,6 +65,16 @@ const createAreaInputSchema = z.object({
   requestId: z.string().uuid(),
 });
 
+const updateAreaInputSchema = createAreaInputSchema
+  .omit({
+    areaCode: true,
+    requestId: true,
+  })
+  .extend({
+    areaId: z.guid(),
+    expectedVersion: z.number().int().positive(),
+  });
+
 interface CreatePostingAreaActionInput {
   areaCode: string;
   name: string;
@@ -73,8 +84,21 @@ interface CreatePostingAreaActionInput {
   requestId: string;
 }
 
+interface UpdatePostingAreaActionInput {
+  areaId: string;
+  expectedVersion: number;
+  name: string;
+  geometry: GeoJsonPolygon;
+  targetCount: number | null;
+  note: string | null;
+}
+
 const importAreasSchema = z
-  .array(createAreaInputSchema.omit({ requestId: true }))
+  .array(
+    createAreaInputSchema.omit({ requestId: true }).extend({
+      assigneeLabel: z.string().trim().max(80).optional(),
+    }),
+  )
   .min(1)
   .max(200);
 
@@ -90,6 +114,25 @@ export async function createPostingAreaAction(
   if (!auth) return { ok: false, message: "ログインし直してください。" };
 
   const result = await createPostingArea(await createClient(), {
+    ...parsed.data,
+    currentUserRole: auth.profile.role,
+  });
+  if (result.ok) revalidatePath("/posting");
+  return result;
+}
+
+export async function updatePostingAreaAction(
+  input: UpdatePostingAreaActionInput,
+): Promise<ActionState> {
+  const parsed = updateAreaInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: "区域名・目標部数・メモ・境界を確認してください。" };
+  }
+
+  const auth = await getAuthContext();
+  if (!auth) return { ok: false, message: "ログインし直してください。" };
+
+  const result = await updatePostingArea(await createClient(), {
     ...parsed.data,
     currentUserRole: auth.profile.role,
   });

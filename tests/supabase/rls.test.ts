@@ -245,7 +245,11 @@ test("RLS・役割・競合防止・二重送信防止が機能する", async ()
   assert.equal(assignedPostingArea.error, null);
   assert.equal(assignedPostingArea.data?.assignee_id, null);
   assert.equal(assignedPostingArea.data?.assignee_label, "A班");
-  assert.equal(assignedPostingArea.data?.status, "assigned");
+  assert.equal(
+    assignedPostingArea.data?.status,
+    "not_started",
+    "担当を決めても進捗状態は未対応のまま維持されること",
+  );
 
   const freeLabelPostingUpdate = await worker.rpc("record_posting_progress", {
     p_area_id: unassignedPostingAreaId,
@@ -350,21 +354,73 @@ test("管理者だけが配布区域を作成・一括登録・削除できる",
   assert.equal(created.data?.target_count, 100);
   assert.equal(created.data?.is_sample, false);
 
-  const workerArchive = await worker.rpc("archive_posting_area", {
+  const workerEdit = await worker.rpc("update_posting_area", {
     p_area_id: adminCreate.data,
     p_expected_version: created.data?.version,
+    p_name: "作業担当者による変更",
+    p_geometry: geometry,
+    p_target_count: 200,
+    p_note: "拒否される変更",
+  });
+  assert.match(workerEdit.error?.message ?? "", /not authorized/);
+
+  const editedGeometry = {
+    type: "Polygon",
+    coordinates: [
+      [
+        [130.48, 33.76],
+        [130.482, 33.76],
+        [130.482, 33.762],
+        [130.48, 33.76],
+      ],
+    ],
+  };
+  const adminEdit = await admin.rpc("update_posting_area", {
+    p_area_id: adminCreate.data,
+    p_expected_version: created.data?.version,
+    p_name: "区域登録の編集テスト",
+    p_geometry: editedGeometry,
+    p_target_count: 250,
+    p_note: "編集後のメモ",
+  });
+  assert.equal(adminEdit.error, null, "管理者は区域情報と境界線を編集できること");
+
+  const edited = await admin
+    .from("posting_areas")
+    .select("name, geometry, target_count, note, version")
+    .eq("id", adminCreate.data)
+    .single();
+  assert.equal(edited.error, null);
+  assert.equal(edited.data?.name, "区域登録の編集テスト");
+  assert.equal(edited.data?.target_count, 250);
+  assert.equal(edited.data?.note, "編集後のメモ");
+  assert.deepEqual(edited.data?.geometry, editedGeometry);
+
+  const staleEdit = await admin.rpc("update_posting_area", {
+    p_area_id: adminCreate.data,
+    p_expected_version: created.data?.version,
+    p_name: "競合する変更",
+    p_geometry: geometry,
+    p_target_count: null,
+    p_note: null,
+  });
+  assert.match(staleEdit.error?.message ?? "", /conflict/);
+
+  const workerArchive = await worker.rpc("archive_posting_area", {
+    p_area_id: adminCreate.data,
+    p_expected_version: edited.data?.version,
   });
   assert.match(workerArchive.error?.message ?? "", /not authorized/);
 
   const staleArchive = await admin.rpc("archive_posting_area", {
     p_area_id: adminCreate.data,
-    p_expected_version: (created.data?.version ?? 1) + 1,
+    p_expected_version: (edited.data?.version ?? 1) + 1,
   });
   assert.match(staleArchive.error?.message ?? "", /conflict/);
 
   const adminArchive = await admin.rpc("archive_posting_area", {
     p_area_id: adminCreate.data,
-    p_expected_version: created.data?.version,
+    p_expected_version: edited.data?.version,
   });
   assert.equal(adminArchive.error, null, "管理者は区域を削除できること");
   const archivedRead = await admin
@@ -393,6 +449,7 @@ test("管理者だけが配布区域を作成・一括登録・削除できる",
     geometry,
     targetCount: number * 50,
     note: null,
+    assigneeLabel: number === 1 ? "立石" : undefined,
   }));
   const imported = await admin.rpc("import_posting_areas", { p_areas: importRows });
   assert.equal(imported.error, null, "GeoJSON由来の区域を一括登録できること");
@@ -400,13 +457,22 @@ test("管理者だけが配布区域を作成・一括登録・削除できる",
 
   const importedRows = await admin
     .from("posting_areas")
-    .select("area_code")
+    .select("area_code, assignee_label, status")
     .in(
       "area_code",
       importRows.map((row) => row.areaCode),
     );
   assert.equal(importedRows.error, null);
   assert.equal(importedRows.data?.length, 2);
+  const importedWithAssignee = importedRows.data?.find(
+    (row) => row.area_code === importRows[0]?.areaCode,
+  );
+  assert.equal(importedWithAssignee?.assignee_label, "立石");
+  assert.equal(
+    importedWithAssignee?.status,
+    "not_started",
+    "一括登録で担当を設定しても未対応のままになること",
+  );
 
   await Promise.all([worker.auth.signOut(), admin.auth.signOut()]);
 });
